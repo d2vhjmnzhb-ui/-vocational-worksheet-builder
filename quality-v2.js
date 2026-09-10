@@ -31,58 +31,54 @@ function domain(){const t=(topics()+(activeTopic===null?' '+$('subject').value:'
 function calcOhm(i){const vs=[6,9,12,18,24,30,36,48,60,72],rs=[2,3,4,5,6,8,10,12,15,20],v=vs[i%10],r=rs[(i*3+1)%10],a=+(v/r).toFixed(2);return{l:'apply',q:'วงจรมีแรงดัน '+v+' V และความต้านทาน '+r+' Ω กระแสไฟฟ้ามีค่าเท่าใด',c:[a+' A',+(v*r).toFixed(2)+' A',+(r/v).toFixed(2)+' A',+(a*2).toFixed(2)+' A'],a:a+' A'}}
 function circuitCalc(i){const t=activeTopic||'';const patterns=/อนุกรม/.test(t)?[1,2,7]:/ขนาน/.test(t)?[3]:/KCL|กระแส.*เคอร์/i.test(t)?[5]:/KVL|แรงดัน.*เคอร์/i.test(t)?[6]:/กำลัง|พลังงาน/.test(t)?[4,8]:/โอห์ม|ohm/i.test(t)?[0,9]:null;if(patterns)i=Math.floor(i/patterns.length)*10+patterns[i%patterns.length];const k=1+Math.floor(i/10),n=i%10;let q,a,u,work;if(n===0)return calcOhm(i);if(n===1){const r1=2*k,r2=5*k;a=r1+r2;u='Ω';q='ตัวต้านทาน '+r1+' Ω และ '+r2+' Ω ต่ออนุกรมกัน ความต้านทานรวมมีค่าเท่าใด';work='Rt = R1 + R2 = '+a+' Ω'}else if(n===2){const r1=2*k,r2=4*k,v=12*k;a=+(v/(r1+r2)).toFixed(2);u='A';q='วงจรอนุกรมมี R1 = '+r1+' Ω, R2 = '+r2+' Ω ต่อกับแหล่งจ่าย '+v+' V กระแสในวงจรมีค่าเท่าใด';work='Rt = '+(r1+r2)+' Ω และ I = V/Rt = '+a+' A'}else if(n===3){const r1=6*k,r2=3*k;a=+((r1*r2)/(r1+r2)).toFixed(2);u='Ω';q='ตัวต้านทาน '+r1+' Ω และ '+r2+' Ω ต่อขนานกัน ความต้านทานรวมมีค่าเท่าใด';work='Rt = (R1R2)/(R1+R2) = '+a+' Ω'}else if(n===4){const v=12*k,current=2*k;a=v*current;u='W';q='โหลดไฟฟ้าใช้แรงดัน '+v+' V และกระแส '+current+' A กำลังไฟฟ้ามีค่าเท่าใด';work='P = VI = '+a+' W'}else if(n===5){const total=8*k,b1=3*k;a=total-b1;u='A';q='ที่จุดต่อหนึ่งมีกระแสไหลเข้า '+total+' A และไหลออกแขนงแรก '+b1+' A ตามกฎ KCL กระแสแขนงที่สองมีค่าเท่าใด';work='Iเข้า = Iออก รวม จึงได้ I2 = '+a+' A'}else if(n===6){const source=18*k,drop=7*k;a=source-drop;u='V';q='วงรอบมีแหล่งจ่าย '+source+' V และแรงดันตกคร่อมอุปกรณ์ตัวแรก '+drop+' V ตามกฎ KVL แรงดันตกคร่อมอุปกรณ์ตัวที่สองมีค่าเท่าใด';work='Vs = V1 + V2 จึงได้ V2 = '+a+' V'}else if(n===7){const v=12*k,r1=2*k,r2=4*k;a=+(v*r2/(r1+r2)).toFixed(2);u='V';q='วงจรแบ่งแรงดันมี R1 = '+r1+' Ω, R2 = '+r2+' Ω และ Vin = '+v+' V แรงดันคร่อม R2 มีค่าเท่าใด';work='Vout = Vin[R2/(R1+R2)] = '+a+' V'}else if(n===8){const p=60*k,t=3;a=p*t;u='Wh';q='อุปกรณ์กำลัง '+p+' W ทำงานเป็นเวลา '+t+' ชั่วโมง ใช้พลังงานไฟฟ้าเท่าใด';work='E = Pt = '+a+' Wh'}else{const v=24*k,current=3*k;a=+(v/current).toFixed(2);u='Ω';q='อุปกรณ์รับแรงดัน '+v+' V และมีกระแส '+current+' A ความต้านทานมีค่าเท่าใด';work='R = V/I = '+a+' Ω'}const nums=[a,+(a*2).toFixed(2),+(a/2).toFixed(2),+(a+2*k).toFixed(2)];return{l:n>=5?'analyze':'apply',q,c:nums.map(x=>x+' '+u),a:a+' '+u+'; '+work}}
 function sourceItems(n){
- const fs=facts(),out=[];
- const type=$('type').value;
- const uniq=a=>[...new Set(a.map(x=>String(x??'').trim()).filter(Boolean))];
- const escapeRe=x=>String(x).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
- const definitions=fs.map(text=>{
-   const m=String(text).match(/^\s*(.{1,100}?)(?:\s*ย่อมาจาก\s*|\s*คือ\s*|\s*หมายถึง\s*|\s*ทำหน้าที่\s*|\s*ใช้สำหรับ\s*)(.{2,220}?)(?:[.!?。]|$)/i);
-   return m?{subject:m[1].trim().replace(/[,:;]+$/,''),answer:m[2].trim().replace(/[.!?。]+$/,''),abbr:/ย่อมาจาก/i.test(text)}:null;
- }).filter(Boolean);
- const academicDistractors=[
-   'หน่วยย่อยพื้นฐานที่ทำหน้าที่เป็นโครงสร้างหลักของระบบ',
-   'ขั้นตอนมาตรฐานในการประมวลผลและวิเคราะห์ข้อมูล',
-   'องค์ประกอบสนับสนุนที่ใช้ในการตรวจสอบผลการทำงาน',
-   'กระบวนการควบคุมคุณภาพตามเกณฑ์ที่กำหนด',
-   'ชุดข้อมูลอ้างอิงสำหรับการประเมินผลของระบบ'
+ const fs=facts(),out=[],type=$('type').value,isFill=type==='เติมคำ',isQna=type==='ถาม–ตอบ';
+ const uniq=a=>[...new Set(a.map(x=>String(x??'').replace(/\s+/g,' ').trim()).filter(Boolean))];
+ const clean=x=>String(x||'').replace(/\s+/g,' ').replace(/[.!?。]+$/,'').trim();
+ const patterns=[
+   {kind:'abbr',link:'ย่อมาจาก',re:/^(.{2,70}?)\s+ย่อมาจาก\s+(.{2,100})$/i},
+   {kind:'definition',link:'คือ',re:/^(.{2,70}?)\s+คือ\s+(.{2,100})$/i},
+   {kind:'meaning',link:'หมายถึง',re:/^(.{2,70}?)\s+หมายถึง\s+(.{2,100})$/i},
+   {kind:'function',link:'ทำหน้าที่',re:/^(.{2,70}?)\s+(?:มี)?ทำหน้าที่\s+(.{2,100})$/i},
+   {kind:'use',link:'ใช้สำหรับ',re:/^(.{2,70}?)\s+ใช้สำหรับ\s+(.{2,100})$/i},
+   {kind:'use',link:'ใช้เพื่อ',re:/^(.{2,70}?)\s+ใช้เพื่อ\s+(.{2,100})$/i}
  ];
- const answerPool=uniq(definitions.map(x=>String(x.answer||'').replace(/\s+/g,' ').trim()).filter(x=>x.length<=90));
- const choicesFor=(answer,index=0)=>{
-   const cross=answerPool.filter(x=>x!==answer);
-   const rotated=cross.slice(index%Math.max(cross.length,1)).concat(cross.slice(0,index%Math.max(cross.length,1)));
-   const distractors=rotated.length>=3?rotated:academicDistractors.slice(index%academicDistractors.length).concat(academicDistractors.slice(0,index%academicDistractors.length));
-   return uniq([answer,...distractors.filter(x=>x!==answer)]).slice(0,4);
- };
- const pushDefinition=(subject,answer,isAbbr,index)=>{
-   answer=String(answer||'').replace(/\s+/g,' ').trim();if(subject.length<1||answer.length<2||answer.length>90)return;
-   if(type==='เติมคำ')return;
-   if(type==='ถาม–ตอบ'){out.push({l:'understand',q:(isAbbr?'คำเต็มของ ':'อธิบายความหมายหรือหน้าที่ของ ')+subject+' โดยสังเขป',c:['คำตอบ', '—', '—', '—'],a:answer});return}
-   const choices=choicesFor(answer,index);
-   if(choices.length===4)out.push({l:'remember',q:isAbbr?'ข้อใดเป็นคำเต็มที่ถูกต้องของ '+subject:'ข้อใดอธิบาย '+subject+' ได้ถูกต้อง',c:choices,a:answer});
- };
+ const structured=fs.map(text=>{
+   const sentence=clean(text);if(sentence.length<12||sentence.length>180)return null;
+   for(const p of patterns){const m=sentence.match(p.re);if(!m)continue;const subject=clean(m[1]).replace(/[,:;]+$/,''),answer=clean(m[2]);if(subject.length<2||subject.length>70||answer.length<2||answer.length>100||/^ดังนั้น/.test(subject))continue;return{subject,answer,kind:p.kind,link:p.link,source:sentence}}
+   return null;
+ }).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.subject===x.subject&&y.kind===x.kind&&y.answer===x.answer)===i);
  const allText=fs.join(' ');
- if(/มอเตอร์(?:ไฟฟ้า)?กระแสตรง|DC\s*motor/i.test(allText)&&/ไฟฟ้ากระแสตรง/.test(allText)&&/แรงกล|พลังงานกล/.test(allText)){const answer='เปลี่ยนพลังงานไฟฟ้ากระแสตรงเป็นพลังงานกล';if(type==='เติมคำ')out.push({l:'remember',q:'มอเตอร์กระแสตรง (DC motor) เปลี่ยนพลังงานไฟฟ้ากระแสตรงเป็นพลังงาน ................',c:['กล','ความร้อน','แสง','เคมี'],a:'กล'});else if(type==='ถาม–ตอบ')out.push({l:'understand',q:'หน้าที่หลักของมอเตอร์กระแสตรง (DC motor) คืออะไร',c:['คำตอบ','—','—','—'],a:answer});else out.push({l:'understand',q:'หน้าที่หลักของมอเตอร์กระแสตรง (DC motor) คือข้อใด',c:[answer,'เปลี่ยนพลังงานกลเป็นพลังงานไฟฟ้ากระแสตรง','เพิ่มแรงดันไฟฟ้ากระแสสลับ','เก็บประจุไฟฟ้าไว้ในวงจร'],a:answer})}
- fs.forEach((f,index)=>{
-   const text=String(f||'').replace(/\s+/g,' ').trim();
-   if(!text)return;
-   const numbers=[...text.matchAll(/\d+(?:\.\d+)?(?:\s*(?:V|A|W|Ω|Hz|โวลต์|แอมแปร์|วัตต์|โอห์ม|เปอร์เซ็นต์|%))?/gi)];
-   if(text.length>160)return;
-   numbers.slice(0,2).forEach(m=>{
-     const raw=m[0],value=Number((raw.match(/\d+(?:\.\d+)?/)||['0'])[0]),unit=raw.replace(/\d+(?:\.\d+)?/,'').trim();
-     const vals=uniq([value,value+1,value*2,Math.max(0,value/2),value+2,value+3].map(v=>String(+v.toFixed(2))+(unit?' '+unit:'')));
-     if(type==='เติมคำ'&&vals.length>=4)out.push({l:'remember',q:text.replace(raw,'................').slice(0,150),c:vals.slice(0,4),a:vals[0]});
-   });
-   const groups=[['แรงดันไฟฟ้า','กระแสไฟฟ้า','ความต้านทานไฟฟ้า','กำลังไฟฟ้า'],['โวลต์','แอมแปร์','โอห์ม','วัตต์'],['อนุกรม','ขนาน','วงจรผสม','ลัดวงจร'],['อินพุต','เอาต์พุต','Timer','Counter'],['SET','RST','Self-holding','Ladder Diagram'],['ปฐมภูมิ','ทุติยภูมิ','แกนเหล็ก','ขดลวด'],['ตัวต้านทาน','ตัวเก็บประจุ','ตัวเหนี่ยวนำ','ไดโอด']];
-   groups.forEach(group=>group.forEach(answer=>{
-     if(text.toLowerCase().includes(answer.toLowerCase())){
-       const pattern=new RegExp(escapeRe(answer),'i');
-       if(type==='เติมคำ')out.push({l:'remember',q:text.replace(pattern,'................'),c:group,a:answer});
-     }
-   }));
-   const def=definitions.find(x=>x.subject&&text.startsWith(x.subject));
-   if(def)pushDefinition(def.subject,def.answer,def.abbr,index);
-   // ไม่สร้างโจทย์จากประโยคทั่วไปที่ยาวหรือกำกวม เพื่อไม่ให้ได้คำถามที่ผู้สอนไม่สามารถตรวจสอบได้
+ if(/มอเตอร์(?:ไฟฟ้า)?กระแสตรง|DC\s*motor/i.test(allText)&&/ไฟฟ้ากระแสตรง/.test(allText)&&/แรงกล|พลังงานกล/.test(allText)&&!structured.some(x=>/มอเตอร์(?:ไฟฟ้า)?กระแสตรง|DC\s*motor/i.test(x.subject)))structured.unshift({subject:'มอเตอร์กระแสตรง (DC motor)',answer:'เปลี่ยนพลังงานไฟฟ้ากระแสตรงเป็นพลังงานกล',kind:'function',link:'ทำหน้าที่',source:'มอเตอร์กระแสตรง (DC motor) ทำหน้าที่เปลี่ยนพลังงานไฟฟ้ากระแสตรงเป็นพลังงานกล'});
+ const distractorBank=['อุปกรณ์สำหรับวัดค่าทางไฟฟ้า','อุปกรณ์สำหรับเก็บพลังงานไฟฟ้า','หน่วยวัดค่าทางไฟฟ้า','อุปกรณ์ป้องกันวงจรไฟฟ้า','ขั้นตอนตรวจสอบการทำงานของระบบ'];
+ const answerPool=uniq(structured.map(x=>x.answer));
+ const choicesFor=(fact,index)=>{
+   const sameKind=structured.filter(x=>x.kind===fact.kind&&x.answer!==fact.answer).map(x=>x.answer);
+   const cross=answerPool.filter(x=>x!==fact.answer);
+   const pool=uniq([...sameKind,...cross,...distractorBank]);
+   const start=index%Math.max(pool.length,1),rot=pool.slice(start).concat(pool.slice(0,start));
+   return uniq([fact.answer,...rot]).slice(0,4);
+ };
+ const statement=f=>f.subject+' '+f.link+' '+f.answer;
+ const negate=f=>{
+   if(f.link==='คือ')return f.subject+' ไม่ใช่ '+f.answer;
+   if(f.link==='หมายถึง')return f.subject+' ไม่ได้หมายถึง '+f.answer;
+   if(f.link==='ย่อมาจาก')return f.subject+' ไม่ได้ย่อมาจาก '+f.answer;
+   if(f.link==='ใช้สำหรับ')return f.subject+' ไม่ได้ใช้สำหรับ '+f.answer;
+   if(f.link==='ใช้เพื่อ')return f.subject+' ไม่ได้ใช้เพื่อ '+f.answer;
+   return f.subject+' ไม่ได้ทำหน้าที่ '+f.answer;
+ };
+ const mcqQuestion=(f,index)=>{
+   if(f.kind==='abbr')return index%2?'ข้อใดเป็นคำเต็มของ '+f.subject:f.subject+' ย่อมาจากอะไร';
+   if(f.kind==='definition'||f.kind==='meaning')return index%2?'ข้อใดอธิบายความหมายของ '+f.subject+' ได้ถูกต้อง':f.subject+' คืออะไร';
+   if(f.kind==='function')return index%2?'ข้อใดกล่าวถูกต้องเกี่ยวกับหน้าที่ของ '+f.subject:'หน้าที่ของ'+f.subject+' คือข้อใด';
+   return index%2?'ข้อใดกล่าวถูกต้องเกี่ยวกับการใช้งานของ '+f.subject:f.subject+' ใช้สำหรับอะไร';
+ };
+ structured.forEach((fact,index)=>{
+   if(isFill){if(fact.answer.length<=55)out.push({l:'remember',q:fact.subject+' '+fact.link+' ................',c:choicesFor(fact,index),a:fact.answer});return}
+   if(isQna){const q=fact.kind==='abbr'?'คำเต็มของ '+fact.subject+' คืออะไร':fact.kind==='function'?'หน้าที่ของ'+fact.subject+' คืออะไร':fact.kind==='use'?fact.subject+' ใช้สำหรับอะไร':'อธิบายความหมายของ '+fact.subject+' โดยสังเขป';out.push({l:'understand',q,c:['คำตอบ','—','—','—'],a:fact.answer});return}
+   const choices=choicesFor(fact,index);if(choices.length===4)out.push({l:'remember',q:mcqQuestion(fact,index),c:choices,a:fact.answer});
  });
+ if(!isFill&&!isQna){const grouped=new Map();structured.forEach(f=>{const items=grouped.get(f.subject)||[];items.push(f);grouped.set(f.subject,items)});let groupIndex=0;for(const [subject,items] of grouped){const truths=uniq(items.map(statement));if(truths.length<3)continue;const wrong=negate(items[groupIndex%items.length]);out.push({l:'analyze',q:'ข้อใดกล่าวไม่ถูกต้องเกี่ยวกับ '+subject,c:[wrong,...truths.slice(0,3)],a:wrong});groupIndex++}}
  return out.filter((x,i,a)=>x.c&&x.c.length===4&&a.findIndex(y=>y.q===x.q)===i).slice(0,Math.max(n,1));
 }
 function legacyQuestions(useFacts){const n=Math.max(1,Math.min(60,window.worksheetStudio?.activeCount??(+$('count').value||1))),key=domain(),isCircuit=key==='ohm'||key==='circuit',type=$('type').value;if(!useFacts||!facts().length)return[];const theory=sourceItems(n);if(!isCircuit||type==='ถาม–ตอบ'||type==='ใบงานปฏิบัติ')return theory.slice(0,n);const rate=type==='คำนวณ'?1:type==='แบบผสม'?.65:type.includes('ปรนัย')?.55:.4,calcN=Math.min(n,Math.max(1,Math.round(n*rate))),theoryN=Math.min(theory.length,n-calcN),out=theory.slice(0,theoryN);for(let i=0;out.length<n&&i<60;i++)out.push(key==='ohm'&&i%3===0?calcOhm(i):circuitCalc(i));return out.filter((x,i,a)=>a.findIndex(y=>y.q===x.q)===i).slice(0,n)}

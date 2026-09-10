@@ -89,26 +89,24 @@
     fields.forEach(id=>$(id).addEventListener('input',()=>{clearTimeout(window.rt);window.rt=setTimeout(render,180)}));try{const d=JSON.parse(localStorage.getItem('vocWorksheetDraft'));if(d)fields.forEach(id=>{if(d[id]!=null)$(id).value=d[id]})}catch(e){}render();
   </script>
   <script src="./html2pdf.bundle.min.js"></script>
-  <script src="./research.js?v=20260910v13"></script>
-  <script src="./quality-v2.js?v=20260910v13"></script>
-  <link rel="stylesheet" href="./studio.css?v=20260910v13">
+  <script src="./research.js?v=20260910v14"></script>
+  <script src="./quality-v2.js?v=20260910v14"></script>
+  <link rel="stylesheet" href="./studio.css?v=20260910v14">
   <style>
     /* ถาม–ตอบ: คำว่า ตอบ: และเส้นเดียวต่อเนื่องกัน */
     .answer-inline{display:flex;align-items:flex-end;gap:7px;margin-top:8px;max-width:160mm;min-height:18px;font-size:12px}.answer-inline b{white-space:nowrap}.answer-inline span{display:block;flex:1;border-bottom:1px dotted #718391;height:15px}
-    /* มายแมพ: เมฆกลาง + พื้นที่เขียนเมฆว่าง ไม่มีเส้นโยงหรือข้อความกำกับ */
-    .map-roots,.map-flourish,.map-branch:before,.map-branch b,.map-artboard:before,.map-artboard:after{display:none!important}
-    .map-center{width:76mm;min-height:56mm;padding:11mm 12mm 9mm;overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none}
-    .map-center:before,.map-center:after{display:none}
-    .map-cloud{position:absolute;width:90mm;height:68mm;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1;overflow:visible;pointer-events:none}
-    .map-cloud .cloud-main{fill:#fffef8;stroke:#168eb6;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round}
-    .map-cloud .cloud-accent{fill:none;stroke:#f0ad32;stroke-width:1.7;stroke-linecap:round;stroke-dasharray:3 3}
-    .map-center img,.map-center span{position:relative;z-index:2}.map-center img{width:39mm;height:25mm;margin-bottom:3px}.map-center span{padding:2px 8px;border-radius:999px;background:#ffffffde}
-    .map-space{position:relative;height:37mm;margin-top:0;border:1.8px solid var(--branch,#6eb7d4);border-radius:50% 47% 52% 48% / 46% 52% 48% 54%;background:#fffffff2;box-shadow:inset 0 0 0 4px #ffffff,0 4px 10px #4d778011}
-    .map-space:before,.map-space:after{content:'';position:absolute;background:#fffffff2;border:1.8px solid var(--branch,#6eb7d4);border-bottom:0;border-radius:50%;z-index:0;pointer-events:none}
-    .map-space:before{width:17mm;height:12mm;left:8mm;top:-6mm}.map-space:after{width:13mm;height:10mm;right:8mm;top:-5mm}
+    /* มายแมพ: จุดกลางและช่องเขียนสองฝั่ง โดยไม่มีเส้นโยง */
+    .map-roots,.map-flourish,.map-cloud,.map-branch:before,.map-branch b,.map-artboard:before,.map-artboard:after{display:none!important}
+    .map-artboard{min-height:148mm;background:linear-gradient(145deg,#f5fbff 0%,#fffdf5 100%);border:1px solid #c8dce7;border-radius:10px}
+    .map-branches{z-index:1}.map-branch{width:54mm;text-align:left}.map-branch:nth-child(1){left:2mm;right:auto;top:10%;bottom:auto;transform:none}.map-branch:nth-child(2){left:2mm;right:auto;top:39%;bottom:auto;transform:none}.map-branch:nth-child(3){left:2mm;right:auto;top:auto;bottom:10%;transform:none}.map-branch:nth-child(4){left:auto;right:2mm;top:10%;bottom:auto;transform:none}.map-branch:nth-child(5){left:auto;right:2mm;top:39%;bottom:auto;transform:none}.map-branch:nth-child(6){left:auto;right:2mm;top:auto;bottom:10%;transform:none}
+    .map-center{z-index:2;width:52mm;min-height:62mm;padding:7mm 6mm 6mm;overflow:visible;border:2px solid #1378a9;border-radius:19px;background:linear-gradient(145deg,#ffffff,#e8f8ff);box-shadow:0 5px 0 #a8d9ee,0 12px 19px #355c7426}
+    .map-center:before{content:'';position:absolute;inset:4mm;border:1px dashed #e8a52c;border-radius:14px;pointer-events:none}.map-center:after{display:none}
+    .map-center img,.map-center span{position:relative;z-index:2}.map-center img{width:34mm;height:30mm;margin:0 0 4px;object-fit:contain;border-radius:9px;border:1px solid #bddbe8;background:#fff}.map-center span{padding:2px 5px;border-radius:7px;background:#ffffffdf;color:#124b68;line-height:1.25}
+    .map-space{position:relative;height:29mm;margin:0;border:1.5px solid var(--branch,#6eb7d4);border-radius:9px;background:repeating-linear-gradient(to bottom,transparent 0,transparent 7mm,#b8cbd5 7mm,#b8cbd5 7.35mm),#ffffffeb;box-shadow:0 3px 8px #355c7410}
+    .map-space:before,.map-space:after{display:none}
   </style>
-  <script src="./studio.js?v=20260910v13"></script>
-  <script src="./manual.js?v=20260910v13"></script>
-  <script src="./pdf-fix.js?v=20260910v13"></script>
+  <script src="./studio.js?v=20260910v14"></script>
+  <script src="./manual.js?v=20260910v14"></script>
+  <script src="./pdf-fix.js?v=20260910v14"></script>
 </body>
 </html>
