@@ -26,53 +26,42 @@ function esc(s){return String(s||'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&l
 let activeTopic=null;
 function data(){try{return JSON.parse(localStorage.getItem('vocResearchDraft'))||{}}catch(e){return{}}}
 function topicList(){const d=data(),base=d.topics&&d.topics.length?d.topics:[$('topic').value],all=base.map(x=>String(x||'').trim()).filter(Boolean);return[...new Set(all)]}function topics(){return activeTopic===null?topicList().join(', '):activeTopic}
-function facts(){const d=data(),ids=new Set(d.selected||[]);return(d.sources||[]).filter(s=>ids.has(s.id)&&(activeTopic===null||!s.topic||String(s.topic).trim()===String(activeTopic).trim())).flatMap(s=>{const raw=(s.extract||s.snippet||'').replace(/\r/g,'\n').trim(),sentences=raw.split(/(?:[.!?。]\s+|\n+)/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);return sentences.flatMap(x=>x.length>260?(x.match(/.{35,240}(?:\s|$)/g)||[]):[x])}).filter((x,i,a)=>x.length>=30&&x.length<=260&&a.indexOf(x)===i)}
+function facts(){const d=data(),ids=new Set(d.selected||[]);return(d.sources||[]).filter(s=>ids.has(s.id)&&(activeTopic===null||!s.topic||String(s.topic).trim()===String(activeTopic).trim())).flatMap(s=>{const raw=(s.extract||s.snippet||'').replace(/\r/g,'\n').trim(),sentences=raw.split(/(?:[.!?。]\s+|\n+)/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);return sentences.flatMap(x=>x.length>260?(x.match(/.{35,240}(?:\s|$)/g)||[]):[x])}).filter((x,i,a)=>x.length>=12&&x.length<=260&&a.indexOf(x)===i)}
 function domain(){const t=(topics()+(activeTopic===null?' '+$('subject').value:'')).toLowerCase();if(/โอห์ม|ohm/.test(t))return'ohm';if(/plc|ladder|gx works|โปรแกรมเมเบิล/.test(t))return'plc';if(/หม้อแปลง|transformer/.test(t))return'transformer';if(/วงจรไฟฟ้า|อนุกรม|ขนาน|เคอร์ชอฟฟ์|kirchhoff|kcl|kvl|กำลังไฟฟ้า/.test(t))return'circuit';return''}
 function calcOhm(i){const vs=[6,9,12,18,24,30,36,48,60,72],rs=[2,3,4,5,6,8,10,12,15,20],v=vs[i%10],r=rs[(i*3+1)%10],a=+(v/r).toFixed(2);return{l:'apply',q:'วงจรมีแรงดัน '+v+' V และความต้านทาน '+r+' Ω กระแสไฟฟ้ามีค่าเท่าใด',c:[a+' A',+(v*r).toFixed(2)+' A',+(r/v).toFixed(2)+' A',+(a*2).toFixed(2)+' A'],a:a+' A'}}
 function circuitCalc(i){const t=activeTopic||'';const patterns=/อนุกรม/.test(t)?[1,2,7]:/ขนาน/.test(t)?[3]:/KCL|กระแส.*เคอร์/i.test(t)?[5]:/KVL|แรงดัน.*เคอร์/i.test(t)?[6]:/กำลัง|พลังงาน/.test(t)?[4,8]:/โอห์ม|ohm/i.test(t)?[0,9]:null;if(patterns)i=Math.floor(i/patterns.length)*10+patterns[i%patterns.length];const k=1+Math.floor(i/10),n=i%10;let q,a,u,work;if(n===0)return calcOhm(i);if(n===1){const r1=2*k,r2=5*k;a=r1+r2;u='Ω';q='ตัวต้านทาน '+r1+' Ω และ '+r2+' Ω ต่ออนุกรมกัน ความต้านทานรวมมีค่าเท่าใด';work='Rt = R1 + R2 = '+a+' Ω'}else if(n===2){const r1=2*k,r2=4*k,v=12*k;a=+(v/(r1+r2)).toFixed(2);u='A';q='วงจรอนุกรมมี R1 = '+r1+' Ω, R2 = '+r2+' Ω ต่อกับแหล่งจ่าย '+v+' V กระแสในวงจรมีค่าเท่าใด';work='Rt = '+(r1+r2)+' Ω และ I = V/Rt = '+a+' A'}else if(n===3){const r1=6*k,r2=3*k;a=+((r1*r2)/(r1+r2)).toFixed(2);u='Ω';q='ตัวต้านทาน '+r1+' Ω และ '+r2+' Ω ต่อขนานกัน ความต้านทานรวมมีค่าเท่าใด';work='Rt = (R1R2)/(R1+R2) = '+a+' Ω'}else if(n===4){const v=12*k,current=2*k;a=v*current;u='W';q='โหลดไฟฟ้าใช้แรงดัน '+v+' V และกระแส '+current+' A กำลังไฟฟ้ามีค่าเท่าใด';work='P = VI = '+a+' W'}else if(n===5){const total=8*k,b1=3*k;a=total-b1;u='A';q='ที่จุดต่อหนึ่งมีกระแสไหลเข้า '+total+' A และไหลออกแขนงแรก '+b1+' A ตามกฎ KCL กระแสแขนงที่สองมีค่าเท่าใด';work='Iเข้า = Iออก รวม จึงได้ I2 = '+a+' A'}else if(n===6){const source=18*k,drop=7*k;a=source-drop;u='V';q='วงรอบมีแหล่งจ่าย '+source+' V และแรงดันตกคร่อมอุปกรณ์ตัวแรก '+drop+' V ตามกฎ KVL แรงดันตกคร่อมอุปกรณ์ตัวที่สองมีค่าเท่าใด';work='Vs = V1 + V2 จึงได้ V2 = '+a+' V'}else if(n===7){const v=12*k,r1=2*k,r2=4*k;a=+(v*r2/(r1+r2)).toFixed(2);u='V';q='วงจรแบ่งแรงดันมี R1 = '+r1+' Ω, R2 = '+r2+' Ω และ Vin = '+v+' V แรงดันคร่อม R2 มีค่าเท่าใด';work='Vout = Vin[R2/(R1+R2)] = '+a+' V'}else if(n===8){const p=60*k,t=3;a=p*t;u='Wh';q='อุปกรณ์กำลัง '+p+' W ทำงานเป็นเวลา '+t+' ชั่วโมง ใช้พลังงานไฟฟ้าเท่าใด';work='E = Pt = '+a+' Wh'}else{const v=24*k,current=3*k;a=+(v/current).toFixed(2);u='Ω';q='อุปกรณ์รับแรงดัน '+v+' V และมีกระแส '+current+' A ความต้านทานมีค่าเท่าใด';work='R = V/I = '+a+' Ω'}const nums=[a,+(a*2).toFixed(2),+(a/2).toFixed(2),+(a+2*k).toFixed(2)];return{l:n>=5?'analyze':'apply',q,c:nums.map(x=>x+' '+u),a:a+' '+u+'; '+work}}
 function sourceItems(n){
  const fs=facts(),out=[],groups=[['แรงดันไฟฟ้า','กระแสไฟฟ้า','ความต้านทานไฟฟ้า','กำลังไฟฟ้า'],['โวลต์','แอมแปร์','โอห์ม','วัตต์'],['อนุกรม','ขนาน','วงจรผสม','ลัดวงจร'],['อินพุต','เอาต์พุต','Timer','Counter'],['SET','RST','Self-holding','Ladder Diagram'],['ปฐมภูมิ','ทุติยภูมิ','แกนเหล็ก','ขดลวด'],['ตัวต้านทาน','ตัวเก็บประจุ','ตัวเหนี่ยวนำ','ไดโอด']];
- fs.forEach(f=>{const numbers=[...f.matchAll(/\d+(?:\.\d+)?(?:\s*(?:V|A|W|Ω|Hz|โวลต์|แอมแปร์|วัตต์|โอห์ม|เปอร์เซ็นต์|%))?/gi)];numbers.slice(0,2).forEach(m=>{const raw=m[0],value=Number((raw.match(/\d+(?:\.\d+)?/)||['0'])[0]),unit=raw.replace(/\d+(?:\.\d+)?/,'').trim(),values=[value,value+1,value*2,Math.max(0,value/2),value+2,value+3].map(v=>String(+v.toFixed(2))+(unit?' '+unit:''));out.push({l:'remember',q:f.replace(raw,'_____')+' ค่าที่หายไปคือข้อใด',c:[...new Set(values)].slice(0,4),a:values[0]})});groups.forEach(group=>{const answer=group.find(term=>f.toLowerCase().includes(term.toLowerCase()));if(answer){const pattern=new RegExp(answer.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');out.push({l:'remember',q:f.replace(pattern,'_____')+' คำที่หายไปคือข้อใด',c:group,a:answer})}});// นิยาม/ความหมาย: รองรับทั้ง "คือ", "หมายถึง", "ทำหน้าที่", "ใช้สำหรับ" และ "ย่อมาจาก"
- const def=f.match(/^(.{2,80}?)(?:\s+คือ|\s+หมายถึง|\s+ทำหน้าที่|\s+ใช้สำหรับ|\s+ย่อมาจาก)\s*(.{3,180}?)(?:[.!?。]|$)/);
- if(def){
-   const answer=def[2].trim(), subject=def[1].trim(), isAbbr=/ย่อมาจาก/.test(f), choices=[];
-   if(isAbbr){
-     // สร้างตัวลวงจากคำในคำตอบ เพื่อให้ยังยึดข้อมูลต้นฉบับ โดยไม่ต้องมีฐานข้อมูลภายนอก
-     const words=answer.split(/\s+/).filter(Boolean), variants=[];
-     if(words.length>=2){
-       variants.push(words.slice().reverse().join(' '));
-       if(words.length>=3){
-         variants.push([words[0],words[2],words[1],...words.slice(3)].join(' '));
-         variants.push([words[1],words[0],words[2],...words.slice(3)].join(' '));
-       }
-       variants.push(words.slice(0,-1).join(' ')+' '+(words[words.length-1].replace(/er$/i,'ing')));
-     }
-     variants.forEach(v=>{if(v&&v!==answer&&!choices.includes(v))choices.push(v)});
+ const uniq=a=>[...new Set(a.map(x=>String(x||'').trim()).filter(Boolean))];
+ const makeDistractors=(answer)=>{
+   const words=answer.split(/\s+/).filter(Boolean),d=[];
+   if(words.length>=2)d.push(words.slice().reverse().join(' '));
+   if(words.length>=3){d.push([words[0],words[2],words[1],...words.slice(3)].join(' '));d.push([words[1],words[0],...words.slice(2)].join(' '));}
+   d.push(answer.replace(/Programmable/gi,'Program'));
+   d.push(answer.replace(/Controller/gi,'Control'));
+   d.push(answer.replace(/Logic/gi,'Line'));
+   return uniq(d).filter(x=>x!==answer);
+ };
+ fs.forEach(f=>{
+   // 1) ตัวเลข/หน่วย: ใช้ได้เมื่อข้อมูลมีตัวเลขจริง
+   const numbers=[...f.matchAll(/\d+(?:\.\d+)?(?:\s*(?:V|A|W|Ω|Hz|โวลต์|แอมแปร์|วัตต์|โอห์ม|เปอร์เซ็นต์|%))?/gi)];
+   numbers.slice(0,2).forEach(m=>{const raw=m[0],value=Number((raw.match(/\d+(?:\.\d+)?/)||['0'])[0]),unit=raw.replace(/\d+(?:\.\d+)?/,'').trim(),values=[value,value+1,value*2,Math.max(0,value/2),value+2,value+3].map(v=>String(+v.toFixed(2))+(unit?' '+unit:''));out.push({l:'remember',q:f.replace(raw,'□□□□')+' ค่าที่หายไปคือข้อใด',c:uniq(values).slice(0,4),a:values[0]})});
+   // 2) คำศัพท์สำคัญที่ปรากฏอยู่ในประโยค
+   groups.forEach(group=>group.forEach(answer=>{if(f.toLowerCase().includes(answer.toLowerCase())){const pattern=new RegExp(answer.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');const c=group;out.push({l:'remember',q:f.replace(pattern,'□□□□')+' คำที่หายไปคือข้อใด',c,a:answer})}}));
+   // 3) นิยาม/ความหมาย/คำย่อ รองรับทั้งข้อความไทยและอังกฤษ และไม่บังคับว่าต้องมีตัวเลือกจากแหล่งอื่น
+   const def=f.match(/^(.{2,100}?)(?:\s*ย่อมาจาก\s*|\s*คือ\s*|\s*หมายถึง\s*|\s*ทำหน้าที่\s*|\s*ใช้สำหรับ\s*)(.{2,220}?)(?:[.!?。]|$)/);
+   if(def){
+     const subject=def[1].trim(),answer=def[2].trim(),isAbbr=/ย่อมาจาก/.test(f),choices=[answer];
+     if(isAbbr)choices.push(...makeDistractors(answer));
+     fs.forEach(x=>{const m=x.match(/^(.{2,100}?)(?:\s*ย่อมาจาก\s*|\s*คือ\s*|\s*หมายถึง\s*|\s*ทำหน้าที่\s*|\s*ใช้สำหรับ\s*)(.{2,220}?)(?:[.!?。]|$)/);if(m&&m[2].trim()!==answer)choices.push(m[2].trim())});
+     let finalChoices=uniq(choices).slice(0,4);
+     // หากคำตอบเป็นคำย่อ/คำศัพท์สั้นมาก ให้สร้างตัวลวงจากโครงสร้างคำโดยตรง
+     if(finalChoices.length<4)finalChoices=uniq([...finalChoices,...makeDistractors(answer),answer+' Controller',answer+' Control',answer+' Logic']).slice(0,4);
+     while(finalChoices.length<4)finalChoices.push('ไม่ใช่ความหมายที่กำหนด');
+     out.push({l:'remember',q:isAbbr?subject+' ย่อมาจากคำว่าอะไร':subject+' หมายถึงข้อใด',c:finalChoices,a:answer});
    }
-   // ถ้ามีคำนิยามจากแหล่งอื่น ใช้หัวข้อเหล่านั้นเป็นตัวลวงก่อน
-   fs.forEach(x=>{const m=x.match(/^(.{2,80}?)(?:\s+คือ|\s+หมายถึง|\s+ทำหน้าที่|\s+ใช้สำหรับ|\s+ย่อมาจาก)\s*(.{3,180})$/);if(m&&m[2].trim()!==answer&&!choices.includes(m[2].trim()))choices.push(m[2].trim())});
-   const finalChoices=[answer,...choices].filter((x,i,a)=>x&&a.indexOf(x)===i).slice(0,4);
-   if(finalChoices.length===4){
-     out.push({l:'remember',q:isAbbr?subject+' ย่อมาจากคำว่าอะไร':'ข้อความ “'+answer+'” เกี่ยวข้องกับข้อใด',c:finalChoices,a:answer});
-   }
- }
- // กรณีมีข้อมูลสั้น/มีเพียงข้อเท็จจริงเดียว: สร้างข้อสอบจากประโยคโดยตรง
- if(!out.length && f.length>=20){
-   const m=f.match(/^(.{2,100}?)(?:\s+ย่อมาจาก\s+|\s+คือ\s+|\s+หมายถึง\s+|\s+ทำหน้าที่\s+|\s+ใช้สำหรับ\s+)(.{2,220}?)(?:[.!?。]|$)/);
-   if(m){
-     const subject=m[1].trim(), ans=m[2].trim(), words=ans.split(/\s+/).filter(Boolean), d=[];
-     if(words.length>1)d.push(words.slice().reverse().join(' '));
-     if(words.length>2)d.push([words[0],words[2],words[1],...words.slice(3)].join(' '));
-     if(words.length>2)d.push([words[1],words[0],...words.slice(2)].join(' '));
-     d.push(ans.replace(/Programmable/gi,'Program'));
-     d.push(ans.replace(/Controller/gi,'Control'));
-     d.push(ans.replace(/Logic/gi,'Line'));
-     const cs=[ans,...d].filter((x,i,a)=>x&&a.indexOf(x)===i).slice(0,4);
-     while(cs.length<4) cs.push('ไม่ตรงกับข้อมูลที่กำหนด '+cs.length);
-     out.push({l:'remember',q:/ย่อมาจาก/.test(f)?subject+' ย่อมาจากคำว่าอะไร':subject+' หมายถึงข้อใด',c:cs,a:ans});
-   }
- }
- });return out.filter((x,i,a)=>x.c.length===4&&a.findIndex(y=>y.q===x.q)===i).slice(0,n)
+ });
+ return out.filter((x,i,a)=>x.c&&x.c.length===4&&a.findIndex(y=>y.q===x.q)===i).slice(0,n);
 }
 function legacyQuestions(useFacts){const n=Math.max(1,Math.min(60,window.worksheetStudio?.activeCount??(+$('count').value||1))),key=domain(),isCircuit=key==='ohm'||key==='circuit',type=$('type').value;if(!useFacts||!facts().length)return[];const theory=sourceItems(n);if(!isCircuit||type==='ถาม–ตอบ'||type==='ใบงานปฏิบัติ')return theory.slice(0,n);const rate=type==='คำนวณ'?1:type==='แบบผสม'?.65:type.includes('ปรนัย')?.55:.4,calcN=Math.min(n,Math.max(1,Math.round(n*rate))),theoryN=Math.min(theory.length,n-calcN),out=theory.slice(0,theoryN);for(let i=0;out.length<n&&i<60;i++)out.push(key==='ohm'&&i%3===0?calcOhm(i):circuitCalc(i));return out.filter((x,i,a)=>a.findIndex(y=>y.q===x.q)===i).slice(0,n)}
 function questions(useFacts){
@@ -87,9 +76,9 @@ function images(){const d=data(),chosen=d.image?[{src:d.image}]:[],found=[...doc
 function rebuild(useFacts){const list=document.querySelector('.exercise');if(!list)return;const type=$('type').value,limit=Math.max(1,Math.min(60,+$('count').value||1)),manual=(window.worksheetManual?.items()||[]).slice(0,limit),generated=questions(useFacts).slice(0,Math.max(0,limit-manual.length));list.innerHTML='';generated.forEach((item,i)=>{const li=document.createElement('li');let body='<small class="question-topic">'+esc(item.topic)+'</small>'+esc(item.q),answer=item.a;if(item.c&&item.c.length===4&&(type.includes('ปรนัย')||(type==='แบบผสม'&&i%3!==2)||type==='คำนวณ')){const c=choice(item,i);body+=c.html;answer=c.answer}else body+='<div class="answer-lines"></div>';li.innerHTML=body+'<div class="answer"><b>เฉลย/แนวคำตอบ:</b> '+esc(answer)+'</div>';list.appendChild(li)});manual.forEach(item=>{const li=document.createElement('li'),correct=letters[item.correct]||'ก';li.className='manual-question';li.innerHTML='<small class="question-topic">'+esc(item.topic||'โจทย์ที่ครูเพิ่ม')+'</small>'+esc(item.question)+'<div class="choices">'+item.choices.map((x,n)=>'<span>'+letters[n]+'. '+esc(x)+'</span>').join('')+'</div><div class="answer"><b>เฉลย:</b> '+correct+'. '+esc(item.choices[item.correct])+'</div>';list.appendChild(li)});const total=generated.length+manual.length,score=document.querySelector('.scorebox');if(score)score.innerHTML='คะแนนที่ได้ ______ / '+total+' คะแนน<br>ผู้ตรวจ __________________';const instruction=[...document.querySelectorAll('.block')].find(x=>x.querySelector('h3')?.textContent==='คำชี้แจง')?.querySelector('p');if(instruction)instruction.textContent=instruction.textContent.replace(/จำนวน \d+ ข้อ|คะแนนเต็ม \d+ คะแนน/g,m=>m.startsWith('จำนวน')?'จำนวน '+total+' ข้อ':'คะแนนเต็ม '+total+' คะแนน');if(useFacts&&$('researchStatus'))$('researchStatus').textContent=total<limit?'สร้างได้ '+total+' ข้อจากเนื้อหาที่มี • เพิ่มเนื้อหาหรือเพิ่มโจทย์เองหากต้องการให้ครบ '+limit+' ข้อ':'สร้างคำถามจากเนื้อหาที่เลือกครบ '+total+' ข้อแล้ว'}
 function documentTitle(){const custom=$('customTitle').value.trim(),k=$('docKind').value,list=topicList();if(custom)return custom;if(list.length<=3){const names=list.length<2?list[0]||$('subject').value:list.slice(0,-1).join(', ')+' และ'+list[list.length-1];return k+' เรื่อง '+names}return k==='ใบงาน'?'ใบงานบูรณาการ รายวิชา'+$('subject').value:k+' รายวิชา'+$('subject').value}function docKind(){const k=$('docKind').value,meta=document.querySelector('.doc-meta h2');if(meta)meta.textContent=documentTitle();const ps=document.querySelectorAll('.doc-meta p');if(ps[1])ps[1].innerHTML='<b>รูปแบบคำถาม:</b> '+esc($('type').value);const no=document.querySelector('.doc-no');if(no)no.innerHTML='ฉบับที่<br><b>01</b>';const exam=k!=='ใบงาน';document.querySelectorAll('.block').forEach(b=>{const h=b.querySelector('h3')?.textContent||'';if(exam&&(h.includes('จุดประสงค์')||h.includes('ความรู้เบื้องต้น')))b.style.display='none'});const ins=[...document.querySelectorAll('.block')].find(x=>x.querySelector('h3')?.textContent.includes('คำชี้แจง'))?.querySelector('p');if(ins&&exam)ins.textContent='ให้ผู้เรียนทำ'+k+'ให้ครบทุกข้อ เลือกคำตอบหรือแสดงวิธีทำตามที่โจทย์กำหนด คะแนนเต็ม '+$('count').value+' คะแนน'}
 function polish(useFacts){const p=$('paper');if(!p)return;p.querySelector('.foot')?.remove();p.querySelector('.worksheet-image')?.remove();[...p.querySelectorAll('.student-line span')].filter(x=>x.textContent.trim().startsWith('วันที่')).forEach(x=>x.remove());const crest=p.querySelector('.crest');if(crest)crest.innerHTML='<img src="./pic-logo.png" alt="ตราวิทยาลัยเทคนิคปากช่อง">';docKind();if(!window.worksheetStudio?.renderSpecial())rebuild(useFacts)}
-let fromSources=false;if($('type').value==='วิเคราะห์')$('type').value='ปรนัย 4 ตัวเลือก ก ข ค ง';function render(){previousRender();polish(fromSources)}window.render=render;$('generateBtn').onclick=()=>{if(!facts().length){alert('กรุณาค้นหา เลือก หรือวางเนื้อหาก่อนสร้างคำถาม');return}fromSources=true;render()};
+let fromSources=false;if($('type').value==='วิเคราะห์')$('type').value='ปรนัย 4 ตัวเลือก ก ข ค ง';function render(){previousRender();polish(fromSources)}window.render=render;function generateFromSelected(){if(!facts().length){alert('กรุณาค้นหา เลือก หรือวางเนื้อหาก่อนสร้างคำถาม');return}fromSources=true;render();}window.worksheetQuality.generateFromSelected=generateFromSelected;$('generateBtn').onclick=generateFromSelected;$('aiGenerateBtn').onclick=generateFromSelected;
 $('docKind').value=localStorage.getItem('vocDocKind')||'ใบงาน';$('customTitle').value=localStorage.getItem('vocCustomTitle')||'';function buildLabel(){$('aiGenerateBtn').textContent='สร้าง'+$('docKind').value+'จากเนื้อหาที่เลือก'}$('docKind').onchange=()=>{localStorage.setItem('vocDocKind',$('docKind').value);buildLabel();render()};$('customTitle').oninput=()=>{localStorage.setItem('vocCustomTitle',$('customTitle').value);render()};buildLabel();
-$('aiGenerateBtn').onclick=()=>{if(!facts().length){alert('กรุณาค้นหาและเลือกข้อมูลก่อนสร้างใบงาน');return}fromSources=true;render();$('researchStatus').textContent='สร้างคำถามจากเนื้อหาที่เลือกแล้ว'};
+$('aiGenerateBtn').onclick=generateFromSelected;
 $('downloadPdfBtn').onclick=async()=>{const b=$('downloadPdfBtn'),old=b.innerHTML;if(typeof html2pdf==='undefined'){alert('ไม่สามารถเปิดตัวสร้าง PDF ได้ กรุณารีเฟรชหน้าแล้วลองใหม่');return}b.disabled=true;b.textContent='กำลังสร้าง PDF…';const name=($('docKind').value+'-'+$('subject').value).replace(/[\\/:*?"<>|]/g,'-')+'.pdf';try{await html2pdf().set({margin:0,filename:name,image:{type:'jpeg',quality:.96},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy'],avoid:['li','.doc-header','.student-line','.question-visual']}}).from($('paper')).save()}catch(e){alert('สร้าง PDF ไม่สำเร็จ กรุณาใช้ปุ่มพิมพ์แล้วเลือกบันทึกเป็น PDF แทน')}finally{b.disabled=false;b.innerHTML=old}};
 const reset=$('resetBtn').onclick;$('resetBtn').onclick=()=>{localStorage.removeItem('vocDocKind');localStorage.removeItem('vocCustomTitle');localStorage.removeItem('vocResearchDraft');localStorage.removeItem('vocManualQuestions');reset()};render();
 })();

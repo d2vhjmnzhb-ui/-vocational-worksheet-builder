@@ -24,7 +24,7 @@
  const instruction=[...$('paper').querySelectorAll('.block')].find(x=>x.querySelector('h3')?.textContent==='คำชี้แจง');if(instruction)instruction.querySelector('p').textContent=presets[type].instruction+' รวม '+total+' '+(type===special[0]?'ประเด็น':'ข้อ')+' คะแนนเต็ม '+total+' คะแนน';$('paper').querySelector('.scorebox').innerHTML='คะแนนที่ได้ ______ / '+total+' คะแนน<br>ผู้ตรวจ __________________';return true;
  }
  window.worksheetStudio={allocation,renderSpecial,activeCount:null};
- for(const id of ['generateBtn','aiGenerateBtn']){const previous=$(id).onclick;$(id).onclick=()=>{refresh();if(!validate())return;if(special.includes($('type').value))window.render();else previous()}}
+ for(const id of ['generateBtn','aiGenerateBtn']){const previous=$(id).onclick;$(id).onclick=()=>{refresh();if(!validate())return;if(special.includes($('type').value)){window.render();return}if(id==='aiGenerateBtn'&&window.worksheetQuality?.generateFromSelected){window.worksheetQuality.generateFromSelected();return}if(typeof previous==='function'){previous();return}window.render()}}
  $('count').addEventListener('input',refresh);$('type').addEventListener('change',refresh);$('topic').addEventListener('input',refresh);new MutationObserver(refresh).observe($('topicBasket'),{childList:true});
  document.addEventListener('research-updated',refresh);
  pairRows();refresh();window.render();
