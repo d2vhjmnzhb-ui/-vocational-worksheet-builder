@@ -57,6 +57,8 @@ function sourceItems(n){
    const choices=choicesFor(answer,index);
    if(choices.length===4)out.push({l:'remember',q:isAbbr?'ข้อใดเป็นคำเต็มที่ถูกต้องของ '+subject:'ข้อใดอธิบาย '+subject+' ได้ถูกต้อง',c:choices,a:answer});
  };
+ const allText=fs.join(' ');
+ if(/มอเตอร์(?:ไฟฟ้า)?กระแสตรง|DC\s*motor/i.test(allText)&&/ไฟฟ้ากระแสตรง/.test(allText)&&/แรงกล|พลังงานกล/.test(allText))out.push({l:'understand',q:'หน้าที่หลักของมอเตอร์กระแสตรง (DC motor) คือข้อใด',c:['เปลี่ยนพลังงานไฟฟ้ากระแสตรงเป็นพลังงานกล','เปลี่ยนพลังงานกลเป็นพลังงานไฟฟ้ากระแสตรง','เพิ่มแรงดันไฟฟ้ากระแสสลับ','เก็บประจุไฟฟ้าไว้ในวงจร'],a:'เปลี่ยนพลังงานไฟฟ้ากระแสตรงเป็นพลังงานกล'});
  fs.forEach((f,index)=>{
    const text=String(f||'').replace(/\s+/g,' ').trim();
    if(!text)return;
@@ -112,21 +114,7 @@ let fromSources=false;if($('type').value==='วิเคราะห์')$('type
    fromSources=true;
    render();
    const list=document.querySelector('.exercise');
-   const hasQuestions=list&&list.querySelectorAll('li').length>0;
-   if(!hasQuestions){
-     const f=fs[0];
-     const def=f.match(/^\s*(.{1,100}?)(?:\s*ย่อมาจาก\s*|\s*คือ\s*|\s*หมายถึง\s*|\s*ทำหน้าที่\s*|\s*ใช้สำหรับ\s*)(.{2,220}?)(?:[.!?。]|$)/i);
-     if(def){
-       const subject=def[1].trim(), answer=def[2].trim().replace(/[.!?。]+$/,'');
-       const choices=[answer,answer.replace(/Programmable/gi,'Program'),answer.replace(/Logic/gi,'Line'),answer.replace(/Controller/gi,'Control')];
-       const li=document.createElement('li');
-       li.innerHTML='<small class="question-topic">'+esc(subject)+'</small>'+esc(subject+' ย่อมาจากคำว่าอะไร')+
-         '<div class="choices">'+choices.map((x,i)=>'<span>'+letters[i]+'. '+esc(x)+'</span>').join('')+'</div>'+
-         '<div class="answer"><b>เฉลย/แนวคำตอบ:</b> ก. '+esc(answer)+'</div>';
-       list.appendChild(li);
-       if($('researchStatus'))$('researchStatus').textContent='สร้างคำถามจากเนื้อหาที่ครูเพิ่มแล้ว 1 ข้อ';
-     }
-   }
+   if((!list||!list.querySelectorAll('li').length)&&$('researchStatus'))$('researchStatus').textContent='ยังไม่พบประโยคที่ครบความหมายสำหรับสร้างข้อสอบ กรุณาเพิ่มเนื้อหาเป็นข้อเท็จจริงสั้น ๆ 1 บรรทัดต่อ 1 ประเด็น';
  }catch(err){
    console.error(err);
    alert('เกิดข้อผิดพลาดในการสร้างคำถาม: '+(err?.message||err));
