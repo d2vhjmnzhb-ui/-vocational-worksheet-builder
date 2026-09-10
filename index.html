@@ -82,27 +82,30 @@
     const mcq=[['ข้อใดอธิบายความสัมพันธ์ตามกฎของโอห์มได้ถูกต้อง','แรงดันเท่ากับกระแสคูณความต้านทาน','กระแสเท่ากับแรงดันคูณความต้านทาน','ความต้านทานเท่ากับกำลังหารกระแส','แรงดันไม่สัมพันธ์กับกระแส','ก'],['เมื่อแรงดันคงที่และความต้านทานเพิ่มขึ้น กระแสไฟฟ้าจะเป็นอย่างไร','เพิ่มขึ้น','ลดลง','คงที่','เป็นศูนย์เสมอ','ข'],['หน่วยของความต้านทานไฟฟ้าคือข้อใด','โวลต์','แอมแปร์','โอห์ม','วัตต์','ค'],['วงจรมีแรงดัน 12 V และความต้านทาน 6 Ω จะมีกระแสเท่าใด','0.5 A','2 A','6 A','72 A','ข']];
     function qData(i,type,topic){const n=i%4;if(type.includes('ปรนัย'))return mcq[n];if(type==='เติมคำ')return [`จงเติมคำหรือข้อความสำคัญเกี่ยวกับ ${topic} ลงในช่องว่างที่กำหนด`,null,null,null,null,'แนวคำตอบ: ระบุคำศัพท์หรือสาระสำคัญให้สอดคล้องกับหัวข้อ'];if(type==='คำนวณ')return [`จงคำนวณค่าที่เกี่ยวข้องกับ ${topic} จากข้อมูลที่กำหนด พร้อมแสดงวิธีทำ`,null,null,null,null,'แนวคำตอบ: ระบุสูตร แทนค่า คำนวณ และใส่หน่วยครบถ้วน'];if(type==='ใบงานปฏิบัติ')return [`ปฏิบัติงานเกี่ยวกับ ${topic} ขั้นตอนที่ ${i+1} พร้อมบันทึกผลที่สังเกตได้`,null,null,null,null,'แนวตรวจ: ขั้นตอนถูกต้อง ปลอดภัย และบันทึกผลครบ'];if(type==='วิเคราะห์')return [`จากสถานการณ์การทำงานเกี่ยวกับ ${topic} จงวิเคราะห์สาเหตุและเสนอแนวทางแก้ไข`,null,null,null,null,'แนวคำตอบ: ระบุสาเหตุ เชื่อมโยงหลักการ และเสนอวิธีที่ปฏิบัติได้'];if(type==='แบบผสม'&&i%2===0)return mcq[n];return [`อธิบายหลักการสำคัญของ ${topic} พร้อมยกตัวอย่างการนำไปใช้`,null,null,null,null,'แนวคำตอบ: กล่าวถึงหลักการสำคัญและตัวอย่างที่สอดคล้อง'];}
     function esc(s){return String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))}
-    function render(){const v=Object.fromEntries(fields.map(id=>[id,$(id).value.trim()]));v.count=Math.max(1,Math.min(60,Number(v.count)||1));$('count').value=v.count;const p=presets[v.type];let qs='';for(let i=0;i<v.count;i++){const q=qData(i,v.type,v.topic);const choices=q[1]?`<div class="choices"><span>ก. ${q[1]}</span><span>ข. ${q[2]}</span><span>ค. ${q[3]}</span><span>ง. ${q[4]}</span></div>`:(v.type==='ถาม–ตอบ'?'<div class="answer-space"></div>':'<div class="answer-lines"><span>................................................................................................</span></div>');qs+=`<li>${esc(q[0])}${choices}<div class="answer"><b>เฉลย:</b> ${esc(q[5])}</div></li>`}
+    function render(){const v=Object.fromEntries(fields.map(id=>[id,$(id).value.trim()]));v.count=Math.max(1,Math.min(60,Number(v.count)||1));$('count').value=v.count;const p=presets[v.type];let qs='';for(let i=0;i<v.count;i++){const q=qData(i,v.type,v.topic);const choices=q[1]?`<div class="choices"><span>ก. ${q[1]}</span><span>ข. ${q[2]}</span><span>ค. ${q[3]}</span><span>ง. ${q[4]}</span></div>`:(v.type==='เติมคำ'?'':'<div class="answer-lines"><span>................................................................................................</span></div>');qs+=`<li>${esc(q[0])}${choices}<div class="answer"><b>เฉลย:</b> ${esc(q[5])}</div></li>`}
       $('paper').innerHTML=`<div class="teacher-badge">เอกสารสำหรับครู • มีแนวคำตอบกำกับทุกข้อ</div><header class="doc-header"><div class="crest">⚡</div><div class="doc-title"><h1>${esc(v.school)}</h1><p>แผนกวิชา${esc(v.department)} • ใบงานรายวิชา</p></div><div class="doc-no">ใบงานที่<br><b>01</b></div></header><div class="student-line"><span>ชื่อ–สกุล <i class="blank"></i></span><span>ชั้น ${esc(v.level)} ${esc(v.year)} / <i class="blank" style="min-width:32px"></i></span><span>เลขที่ <i class="blank" style="min-width:35px"></i></span></div><section class="doc-meta"><h2>${esc(v.topic)}</h2><p><b>วิชา:</b> ${esc(v.subject)} &nbsp; <b>รหัส:</b> ${esc(v.code)} &nbsp; <b>ระดับ:</b> ${esc(v.level)} ชั้นปีที่ ${esc(v.year)}</p><p><b>ประเภท:</b> ${esc(v.type)} &nbsp; <b>ระดับความยาก:</b> ${esc(v.difficulty)}</p></section><section class="block"><h3>คำชี้แจง</h3><p>${p.instruction} จำนวน ${v.count} ข้อ คะแนนเต็ม ${v.count} คะแนน</p></section><section class="block"><h3>ความรู้เบื้องต้น</h3><p>${esc(v.topic)} เป็นเนื้อหาสำคัญที่ผู้เรียนควรเข้าใจทั้งหลักการ คำศัพท์ และการประยุกต์ใช้ในงานอาชีพ ควรพิจารณาข้อมูลที่โจทย์กำหนด เลือกหลักการที่เหมาะสม และตรวจสอบคำตอบทุกครั้ง</p></section><section class="block"><h3>แบบฝึกหัด</h3><ol class="exercise">${qs}</ol></section><div class="scorebox">คะแนนที่ได้ ______ / ${v.count} คะแนน<br>ผู้ตรวจ __________________</div>`;localStorage.setItem('vocWorksheetDraft',JSON.stringify(v));}
     document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('paper').classList.toggle('teacher',t.dataset.view==='teacher')});
     $('generateBtn').onclick=render;$('printBtn').onclick=()=>window.print();$('resetBtn').onclick=()=>{if(confirm('ต้องการล้างข้อมูลและกลับค่าเริ่มต้นหรือไม่?')){localStorage.removeItem('vocWorksheetDraft');location.reload()}};
     fields.forEach(id=>$(id).addEventListener('input',()=>{clearTimeout(window.rt);window.rt=setTimeout(render,180)}));try{const d=JSON.parse(localStorage.getItem('vocWorksheetDraft'));if(d)fields.forEach(id=>{if(d[id]!=null)$(id).value=d[id]})}catch(e){}render();
   </script>
   <script src="./html2pdf.bundle.min.js"></script>
-  <script src="./research.js?v=20260910v11"></script>
-  <script src="./quality-v2.js?v=20260910v11"></script>
-  <link rel="stylesheet" href="./studio.css?v=20260910v11">
+  <script src="./research.js?v=20260910v12"></script>
+  <script src="./quality-v2.js?v=20260910v12"></script>
+  <link rel="stylesheet" href="./studio.css?v=20260910v12">
   <style>
-    /* พื้นที่ตอบของถาม–ตอบ: เว้นที่เขียนโดยไม่พิมพ์จุดซ้ำ */
-    .answer-space{height:42px;margin-top:7px}
-    /* มายแมพ: กิ่งโค้งจากกลางกระดาษเหมือนรากไม้ */
-    .map-roots{position:absolute;inset:0;width:100%;height:100%;z-index:1;overflow:visible;pointer-events:none}
-    .map-roots path{fill:none;stroke-width:.58;stroke-linecap:round;stroke-linejoin:round;opacity:.92}
-    .map-roots .root-1{stroke:#ee9a77}.map-roots .root-2{stroke:#e6b544}.map-roots .root-3{stroke:#7abb77}.map-roots .root-4{stroke:#6da9d9}.map-roots .root-5{stroke:#a47ec5}.map-roots .root-6{stroke:#df8ca6}
-    .map-branch:before{display:none}.map-branch b{border-bottom:0;padding:4px 7px;border-radius:999px;background:#ffffffc9;box-shadow:0 2px 7px #3560771a}.map-space{border-bottom:2px dotted var(--branch,#6eb7d4);border-radius:0 0 45% 45%}
+    /* มายแมพ: ไม่มีเส้นโยง ให้ผู้เรียนวาดความสัมพันธ์เอง */
+    .map-branch:before{display:none}.map-branch b{display:none}
+    .map-space{height:43mm;margin-top:0;border:2px dotted var(--branch,#6eb7d4);border-radius:48% 52% 45% 55%;background:#ffffff75}
+    .map-center{overflow:visible;border:0;background:radial-gradient(circle,#fff 0 32%,#d8f3ff 33% 51%,transparent 52%);box-shadow:none}
+    .map-center:before,.map-center:after{content:'';position:absolute;inset:-11mm;border:2px solid #46a4c9;border-radius:48% 52% 46% 54%;transform:rotate(-12deg);opacity:.75;pointer-events:none}
+    .map-center:after{inset:-7mm;border-color:#e6b544;transform:rotate(27deg);border-style:dashed}
+    .map-center img,.map-center span{position:relative;z-index:2}.map-center span{padding:3px 8px;border-radius:999px;background:#ffffffdd}
+    .map-flourish{position:absolute;width:106mm;height:106mm;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1;overflow:visible;pointer-events:none}
+    .map-flourish path{fill:none;stroke:#2b8cae;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;opacity:.82}
+    .map-flourish path+path{stroke:#e4a62d;stroke-width:1.2;stroke-dasharray:2 2}
   </style>
-  <script src="./studio.js?v=20260910v11"></script>
-  <script src="./manual.js?v=20260910v11"></script>
-  <script src="./pdf-fix.js?v=20260910v11"></script>
+  <script src="./studio.js?v=20260910v12"></script>
+  <script src="./manual.js?v=20260910v12"></script>
+  <script src="./pdf-fix.js?v=20260910v12"></script>
 </body>
 </html>
