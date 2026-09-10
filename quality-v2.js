@@ -45,7 +45,8 @@ function sourceItems(n){
    'กระบวนการควบคุมคุณภาพตามเกณฑ์ที่กำหนด',
    'ชุดข้อมูลอ้างอิงสำหรับการประเมินผลของระบบ'
  ];
- const answerPool=uniq(definitions.map(x=>x.answer).concat(fs));
+ const shortText=(text,max=90)=>{const s=String(text||'').replace(/\s+/g,' ').trim();if(s.length<=max)return s;const cut=s.slice(0,max);const end=Math.max(cut.lastIndexOf(' '),cut.lastIndexOf('،'),cut.lastIndexOf(','));return(cut.slice(0,end>35?end:max).trim()+'…')};
+ const answerPool=uniq(definitions.map(x=>shortText(x.answer)).filter(x=>x.length<=90));
  const choicesFor=(answer,index=0)=>{
    const cross=answerPool.filter(x=>x!==answer);
    const rotated=cross.slice(index%Math.max(cross.length,1)).concat(cross.slice(0,index%Math.max(cross.length,1)));
@@ -53,7 +54,7 @@ function sourceItems(n){
    return uniq([answer,...distractors.filter(x=>x!==answer)]).slice(0,4);
  };
  const pushDefinition=(subject,answer,isAbbr,index)=>{
-   if(subject.length<1||answer.length<2)return;
+   answer=shortText(answer);if(subject.length<1||answer.length<2||answer.length>90)return;
    const choices=choicesFor(answer,index);
    if(choices.length===4)out.push({l:'remember',q:isAbbr?'ข้อใดเป็นคำเต็มที่ถูกต้องของ '+subject:'ข้อใดอธิบาย '+subject+' ได้ถูกต้อง',c:choices,a:answer});
  };
@@ -64,21 +65,19 @@ function sourceItems(n){
    numbers.slice(0,2).forEach(m=>{
      const raw=m[0],value=Number((raw.match(/\d+(?:\.\d+)?/)||['0'])[0]),unit=raw.replace(/\d+(?:\.\d+)?/,'').trim();
      const vals=uniq([value,value+1,value*2,Math.max(0,value/2),value+2,value+3].map(v=>String(+v.toFixed(2))+(unit?' '+unit:'')));
-     if(vals.length>=4)out.push({l:'remember',q:text.replace(raw,'□□□□')+' ข้อใดเป็นค่าที่เหมาะสมสำหรับเติมลงในช่องว่าง',c:vals.slice(0,4),a:vals[0]});
+     if(vals.length>=4)out.push({l:'remember',q:text.replace(raw,'................').slice(0,150)+' ข้อใดเป็นค่าที่เหมาะสมสำหรับเติมลงในช่องว่าง',c:vals.slice(0,4),a:vals[0]});
    });
    const groups=[['แรงดันไฟฟ้า','กระแสไฟฟ้า','ความต้านทานไฟฟ้า','กำลังไฟฟ้า'],['โวลต์','แอมแปร์','โอห์ม','วัตต์'],['อนุกรม','ขนาน','วงจรผสม','ลัดวงจร'],['อินพุต','เอาต์พุต','Timer','Counter'],['SET','RST','Self-holding','Ladder Diagram'],['ปฐมภูมิ','ทุติยภูมิ','แกนเหล็ก','ขดลวด'],['ตัวต้านทาน','ตัวเก็บประจุ','ตัวเหนี่ยวนำ','ไดโอด']];
    groups.forEach(group=>group.forEach(answer=>{
      if(text.toLowerCase().includes(answer.toLowerCase())){
        const pattern=new RegExp(escapeRe(answer),'i');
-       out.push({l:'remember',q:text.replace(pattern,'□□□□')+' ข้อใดเป็นคำที่เหมาะสมสำหรับเติมลงในช่องว่าง',c:group,a:answer});
+       const at=text.search(pattern),start=Math.max(0,at-55),end=Math.min(text.length,at+answer.length+55);let context=text.slice(start,end).trim();if(start>0)context='…'+context;if(end<text.length)context+='…';
+       out.push({l:'remember',q:context.replace(pattern,'................')+' ข้อใดเป็นคำที่เหมาะสมสำหรับเติมลงในช่องว่าง',c:group,a:answer});
      }
    }));
    const def=definitions.find(x=>x.subject&&text.startsWith(x.subject));
    if(def)pushDefinition(def.subject,def.answer,def.abbr,index);
-   else{
-     const choices=choicesFor(text,index);
-     if(choices.length===4)out.push({l:'understand',q:'จากเนื้อหาที่กำหนด ข้อใดเป็นข้อความที่สอดคล้องกับสาระสำคัญ',c:choices,a:text});
-   }
+   // ไม่สร้างโจทย์จากประโยคทั่วไปที่ยาวหรือกำกวม เพื่อไม่ให้ได้คำถามที่ผู้สอนไม่สามารถตรวจสอบได้
  });
  return out.filter((x,i,a)=>x.c&&x.c.length===4&&a.findIndex(y=>y.q===x.q)===i).slice(0,Math.max(n,1));
 }
