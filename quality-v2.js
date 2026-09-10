@@ -45,8 +45,7 @@ function sourceItems(n){
    'กระบวนการควบคุมคุณภาพตามเกณฑ์ที่กำหนด',
    'ชุดข้อมูลอ้างอิงสำหรับการประเมินผลของระบบ'
  ];
- const shortText=(text,max=90)=>{const s=String(text||'').replace(/\s+/g,' ').trim();if(s.length<=max)return s;const cut=s.slice(0,max);const end=Math.max(cut.lastIndexOf(' '),cut.lastIndexOf('،'),cut.lastIndexOf(','));return(cut.slice(0,end>35?end:max).trim()+'…')};
- const answerPool=uniq(definitions.map(x=>shortText(x.answer)).filter(x=>x.length<=90));
+ const answerPool=uniq(definitions.map(x=>String(x.answer||'').replace(/\s+/g,' ').trim()).filter(x=>x.length<=90));
  const choicesFor=(answer,index=0)=>{
    const cross=answerPool.filter(x=>x!==answer);
    const rotated=cross.slice(index%Math.max(cross.length,1)).concat(cross.slice(0,index%Math.max(cross.length,1)));
@@ -54,7 +53,7 @@ function sourceItems(n){
    return uniq([answer,...distractors.filter(x=>x!==answer)]).slice(0,4);
  };
  const pushDefinition=(subject,answer,isAbbr,index)=>{
-   answer=shortText(answer);if(subject.length<1||answer.length<2||answer.length>90)return;
+   answer=String(answer||'').replace(/\s+/g,' ').trim();if(subject.length<1||answer.length<2||answer.length>90)return;
    const choices=choicesFor(answer,index);
    if(choices.length===4)out.push({l:'remember',q:isAbbr?'ข้อใดเป็นคำเต็มที่ถูกต้องของ '+subject:'ข้อใดอธิบาย '+subject+' ได้ถูกต้อง',c:choices,a:answer});
  };
@@ -62,6 +61,7 @@ function sourceItems(n){
    const text=String(f||'').replace(/\s+/g,' ').trim();
    if(!text)return;
    const numbers=[...text.matchAll(/\d+(?:\.\d+)?(?:\s*(?:V|A|W|Ω|Hz|โวลต์|แอมแปร์|วัตต์|โอห์ม|เปอร์เซ็นต์|%))?/gi)];
+   if(text.length>160)return;
    numbers.slice(0,2).forEach(m=>{
      const raw=m[0],value=Number((raw.match(/\d+(?:\.\d+)?/)||['0'])[0]),unit=raw.replace(/\d+(?:\.\d+)?/,'').trim();
      const vals=uniq([value,value+1,value*2,Math.max(0,value/2),value+2,value+3].map(v=>String(+v.toFixed(2))+(unit?' '+unit:'')));
@@ -71,8 +71,7 @@ function sourceItems(n){
    groups.forEach(group=>group.forEach(answer=>{
      if(text.toLowerCase().includes(answer.toLowerCase())){
        const pattern=new RegExp(escapeRe(answer),'i');
-       const at=text.search(pattern),start=Math.max(0,at-55),end=Math.min(text.length,at+answer.length+55);let context=text.slice(start,end).trim();if(start>0)context='…'+context;if(end<text.length)context+='…';
-       out.push({l:'remember',q:context.replace(pattern,'................')+' ข้อใดเป็นคำที่เหมาะสมสำหรับเติมลงในช่องว่าง',c:group,a:answer});
+       out.push({l:'remember',q:text.replace(pattern,'................')+' ข้อใดเป็นคำที่เหมาะสมสำหรับเติมลงในช่องว่าง',c:group,a:answer});
      }
    }));
    const def=definitions.find(x=>x.subject&&text.startsWith(x.subject));
