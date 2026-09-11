@@ -56,7 +56,9 @@
     if(!qs.length){r.style.display='block';r.textContent='ยังไม่พบข้อสอบปรนัย 4 ตัวเลือกที่มีเฉลย ก ข ค ง กรุณาสร้างข้อสอบก่อน';}
     modal.classList.add('open');
   }
-  async function api(payload){const r=await fetch(EXAM_API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});if(!r.ok)throw new Error('เชื่อมต่อ API ไม่สำเร็จ');return r.json()}
+  function jsonp(params,timeout=12000){return new Promise((resolve,reject)=>{const cb='__examcb_'+Date.now()+'_'+Math.random().toString(36).slice(2);const s=document.createElement('script');const t=setTimeout(()=>done(new Error('เชื่อมต่อระบบไม่สำเร็จ')),timeout);function done(err,data){clearTimeout(t);try{delete window[cb]}catch(_){window[cb]=undefined}s.remove();err?reject(err):resolve(data)}window[cb]=data=>done(null,data);const u=new URL(EXAM_API_URL);Object.entries({...params,callback:cb,_t:Date.now()}).forEach(([k,v])=>u.searchParams.set(k,String(v)));s.onerror=()=>done(new Error('เชื่อมต่อระบบไม่สำเร็จ'));s.src=u.href;document.head.appendChild(s)})}
+  function makeExamId(){const a=new Uint8Array(6);crypto.getRandomValues(a);return 'EX_'+[...a].map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase()}
+  async function createExamNoCors(payload){await fetch(EXAM_API_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});for(let i=0;i<12;i++){await new Promise(r=>setTimeout(r,500));const d=await jsonp({action:'getExam',examId:payload.examId}).catch(()=>null);if(d&&d.ok)return d}throw new Error('บันทึกข้อสอบไม่สำเร็จ กรุณาลองอีกครั้ง')}
   $('examModalPublish').onclick=async()=>{
     const result=$('onlineExamResult'),btn=$('examModalPublish');
     try{
@@ -64,7 +66,7 @@
       const questions=readQuestions();if(!questions.length)throw new Error('ไม่พบข้อสอบปรนัยพร้อมเฉลย');
       const title=$('onlineExamTitle').value.trim();if(!title)throw new Error('กรุณาใส่ชื่อชุดข้อสอบ');
       btn.disabled=true;btn.textContent='กำลังเผยแพร่...';result.style.display='block';result.textContent='กำลังบันทึกข้อสอบ...';
-      const d=await api({action:'createExam',title,subject:getMeta('subject'),code:getMeta('code'),level:getMeta('level'),year:getMeta('year'),topic:getMeta('topic'),duration:+$('onlineExamMinutes').value||50,maxLeave:+$('onlineExamMaxLeave').value||3,showScore:$('onlineExamShowScore').value==='yes',oneAttempt:$('onlineExamOneAttempt').value==='yes',questions});
+      const examId=makeExamId();const d=await createExamNoCors({action:'createExam',examId,title,subject:getMeta('subject'),code:getMeta('code'),level:getMeta('level'),year:getMeta('year'),topic:getMeta('topic'),duration:+$('onlineExamMinutes').value||50,maxLeave:+$('onlineExamMaxLeave').value||3,showScore:$('onlineExamShowScore').value==='yes',oneAttempt:$('onlineExamOneAttempt').value==='yes',questions});
       if(!d.ok)throw new Error(d.error||'เผยแพร่ไม่สำเร็จ');
       const base=new URL(STUDENT_EXAM_URL,location.href).href,link=base+(base.includes('?')?'&':'?')+'exam='+encodeURIComponent(d.examId);
       result.innerHTML=`<b>เผยแพร่สำเร็จ</b><br>รหัสข้อสอบ: <b>${esc(d.examId)}</b><br><a href="${esc(link)}" target="_blank" rel="noopener">เปิดลิงก์สำหรับนักเรียน</a><br><button class="exam-copy" id="copyExamLink" type="button">คัดลอกลิงก์</button>`;
