@@ -110,6 +110,11 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 
 #startBtn.is-loading,#submitBtn.is-loading{filter:saturate(.75);box-shadow:0 0 0 4px rgba(47,128,255,.15) inset}
 #startBtn.is-success,#submitBtn.is-success{box-shadow:0 0 0 4px rgba(49,183,104,.14) inset}
+
+.textAnswer{width:100%;min-height:150px;border:1px solid #d8e5ef;border-radius:16px;padding:14px 15px;font:inherit;line-height:1.55;color:var(--ink);background:#fbfdff;resize:vertical;outline:none}
+.textAnswer:focus{border-color:#6aa7ff;box-shadow:0 0 0 3px #dfeeff}
+.textHint{font-size:.8rem;color:#74889e;font-weight:800;margin-top:7px}
+.pendingScore{margin-top:10px;background:#fff8e7;border:1px solid #ffe09a;color:#805600;border-radius:13px;padding:11px;font-weight:900}
 </style>
 </head>
 <body>
@@ -347,18 +352,32 @@ $('startBtn').onclick=async()=>{
 function renderQuestion(){
   if(!exam)return;
   const q=exam.questions[currentQuestion];
+  const type=q.type||'mcq';
   $('qCounter').textContent=`ข้อ ${currentQuestion+1} / ${exam.questions.length}`;
   $('qText').textContent=q.q;
-  $('choicesWrap').innerHTML=['ก','ข','ค','ง'].map(k=>`
-    <label class="choice">
-      <input type="radio" name="currentQ" value="${k}" ${answers[currentQuestion]===k?'checked':''}>
-      <span><span class="choiceLetter">${k}.</span> ${esc(q.choices[k])}</span>
-    </label>`).join('');
-  document.querySelectorAll('input[name=currentQ]').forEach(r=>r.onchange=e=>{
-    answers[currentQuestion]=e.target.value;
-    e.target.closest('.choice')?.animate([{transform:'scale(.985)'},{transform:'scale(1)'}],{duration:140});
-    stats();
-  });
+
+  if(type==='text'){
+    $('choicesWrap').innerHTML=`
+      <textarea id="textAnswerBox" class="textAnswer" maxlength="5000" placeholder="พิมพ์คำตอบของคุณที่นี่...">${esc(answers[currentQuestion]||'')}</textarea>
+      <div class="textHint">คำถามแบบถาม–ตอบ • ระบบบันทึกคำตอบไว้ในหน้านี้จนกว่าจะส่งข้อสอบ</div>`;
+    const ta=$('textAnswerBox');
+    ta.oninput=()=>{
+      answers[currentQuestion]=ta.value;
+      stats();
+    };
+  }else{
+    $('choicesWrap').innerHTML=['ก','ข','ค','ง'].map(k=>`
+      <label class="choice">
+        <input type="radio" name="currentQ" value="${k}" ${answers[currentQuestion]===k?'checked':''}>
+        <span><span class="choiceLetter">${k}.</span> ${esc((q.choices||{})[k]||'')}</span>
+      </label>`).join('');
+    document.querySelectorAll('input[name=currentQ]').forEach(r=>r.onchange=e=>{
+      answers[currentQuestion]=e.target.value;
+      e.target.closest('.choice')?.animate([{transform:'scale(.985)'},{transform:'scale(1)'}],{duration:140});
+      stats();
+    });
+  }
+
   $('prevBtn').disabled=currentQuestion===0;
   $('nextBtn').textContent=currentQuestion===exam.questions.length-1?'ตรวจคำตอบ ✓':'ข้อต่อไป →';
   updateMascotMessage();
@@ -376,7 +395,7 @@ $('nextBtn').onclick=()=>{
 };
 
 function stats(){
-  const n=Object.keys(answers).length,t=exam?.questions.length||0;
+  const n=Object.values(answers).filter(v=>String(v??'').trim()!=='').length,t=exam?.questions.length||0;
   $('progressText').textContent=`ตอบแล้ว ${n}/${t} ข้อ`;
   $('leaveStat').textContent=`ออกจากหน้า ${leaveCount} ครั้ง`;
   $('progressBar').style.width=(t?Math.round(n*100/t):0)+'%';
@@ -466,7 +485,7 @@ async function submitExam(auto,reason){
     alert(`ยังส่งข้อสอบไม่ได้ ต้องรอให้เวลาผ่านอย่างน้อย 50% ก่อน${remain>0?` (ประมาณ ${remain} นาที)`:''}`);
     return;
   }
-  if(!auto&&!confirm(`ยืนยันส่งข้อสอบ? ตอบแล้ว ${Object.keys(answers).length}/${exam.questions.length} ข้อ`))return;
+  if(!auto&&!confirm(`ยืนยันส่งข้อสอบ? ตอบแล้ว ${Object.values(answers).filter(v=>String(v??'').trim()!=='').length}/${exam.questions.length} ข้อ`))return;
   submitting=true;
   clearInterval(timerId);
   const btn=$('submitBtn');
@@ -483,7 +502,19 @@ async function submitExam(auto,reason){
     await new Promise(r=>setTimeout(r,250));
     $('examArea').classList.add('hidden');
     $('doneCard').classList.remove('hidden');
-    $('doneText').textContent=d.showScore?`บันทึกเรียบร้อย คะแนน ${d.score}/${d.total}`:'บันทึกคำตอบเรียบร้อย';
+    if(d.showScore){
+      $('doneText').textContent=d.pendingManual
+        ? `ส่งเรียบร้อย • คะแนนปรนัยเบื้องต้น ${d.score} คะแนน • มีข้อถาม–ตอบรอครูตรวจ`
+        : `บันทึกเรียบร้อย คะแนน ${d.finalScore ?? d.score}/${d.total}`;
+      if(d.pendingManual){
+        const p=document.createElement('div');
+        p.className='pendingScore';
+        p.textContent='คะแนนรวมจะสมบูรณ์หลังครูตรวจข้อถาม–ตอบ';
+        $('doneText').insertAdjacentElement('afterend',p);
+      }
+    }else{
+      $('doneText').textContent='บันทึกคำตอบเรียบร้อย';
+    }
     reviewData=Array.isArray(d.review)?d.review:null;
     if(reviewData&&reviewData.length){
       $('reviewArea').classList.remove('hidden');
@@ -505,21 +536,38 @@ async function submitExam(auto,reason){
 function renderReview(){
   if(!reviewData||!reviewData.length)return;
   const r=reviewData[reviewIndex];
+  const type=r.type||'mcq';
   $('reviewCounter').textContent=`ข้อ ${reviewIndex+1}/${reviewData.length}`;
   $('reviewQuestion').textContent=r.q;
-  $('reviewChoices').innerHTML=['ก','ข','ค','ง'].map(k=>{
-    const chosen=String(r.studentAnswer||'')===k;
-    const correct=String(r.correctAnswer||'')===k;
-    let mark='';
-    if(chosen&&correct)mark=' ✓ คำตอบของคุณ / เฉลย';
-    else if(correct)mark=' ✓ เฉลย';
-    else if(chosen)mark=' ✕ คำตอบของคุณ';
-    const style=correct?'border-color:#55c989;background:#effcf4;':(chosen?'border-color:#ff8da4;background:#fff3f5;':'');
-    return `<div class="choice" style="${style}"><span style="font-weight:1000">${k}.</span><span>${esc(r.choices[k])}<b style="margin-left:6px">${mark}</b></span></div>`;
-  }).join('');
-  const ok=String(r.studentAnswer||'')===String(r.correctAnswer||'');
-  $('reviewResult').className='reviewResult '+(ok?'reviewCorrect':'reviewWrong');
-  $('reviewResult').textContent=ok?'ตอบถูก':'คำตอบของคุณ: '+(r.studentAnswer||'ไม่ได้ตอบ')+' • เฉลย: '+r.correctAnswer;
+
+  if(type==='text'){
+    $('reviewChoices').innerHTML=`
+      <div class="choice" style="display:block">
+        <b>คำตอบของคุณ</b>
+        <div style="margin-top:8px;white-space:pre-wrap">${esc(r.studentAnswer||'ไม่ได้ตอบ')}</div>
+      </div>
+      <div class="choice" style="display:block;border-color:#7fb6ff;background:#f3f8ff">
+        <b>แนวคำตอบ</b>
+        <div style="margin-top:8px;white-space:pre-wrap">${esc(r.modelAnswer||'ครูไม่ได้ระบุแนวคำตอบ')}</div>
+      </div>`;
+    $('reviewResult').className='reviewResult reviewCorrect';
+    $('reviewResult').textContent='ข้อนี้เป็นคำถามแบบถาม–ตอบ คะแนนขึ้นอยู่กับการตรวจของครู';
+  }else{
+    $('reviewChoices').innerHTML=['ก','ข','ค','ง'].map(k=>{
+      const chosen=String(r.studentAnswer||'')===k;
+      const correct=String(r.correctAnswer||'')===k;
+      let mark='';
+      if(chosen&&correct)mark=' ✓ คำตอบของคุณ / เฉลย';
+      else if(correct)mark=' ✓ เฉลย';
+      else if(chosen)mark=' ✕ คำตอบของคุณ';
+      const style=correct?'border-color:#55c989;background:#effcf4;':(chosen?'border-color:#ff8da4;background:#fff3f5;':'');
+      return `<div class="choice" style="${style}"><span style="font-weight:1000">${k}.</span><span>${esc((r.choices||{})[k]||'')}<b style="margin-left:6px">${mark}</b></span></div>`;
+    }).join('');
+    const ok=String(r.studentAnswer||'')===String(r.correctAnswer||'');
+    $('reviewResult').className='reviewResult '+(ok?'reviewCorrect':'reviewWrong');
+    $('reviewResult').textContent=ok?'ตอบถูก':'คำตอบของคุณ: '+(r.studentAnswer||'ไม่ได้ตอบ')+' • เฉลย: '+r.correctAnswer;
+  }
+
   $('reviewPrev').disabled=reviewIndex===0;
   $('reviewNext').textContent=reviewIndex===reviewData.length-1?'จบการตรวจ':'ข้อต่อไป →';
 }
