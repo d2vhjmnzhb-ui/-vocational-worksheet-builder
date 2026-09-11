@@ -29,9 +29,29 @@ function topicList(){const d=data(),base=d.topics&&d.topics.length?d.topics:[$('
 const summaryStart=/^(?:ดังนั้น|สรุป(?:ว่า)?|กล่าวโดยสรุป|จึงสรุปได้ว่า|เพราะฉะนั้น|ด้วยเหตุนี้)(?:\s|,|:|$)/;
 const sourcePatterns=[
  {kind:'abbr',link:'ย่อมาจาก',re:/^(.{2,70}?)\s*ย่อมาจาก\s*(.{2,100})$/i},
+ {kind:'advantage',link:'มีข้อดีคือ',re:/^(.{2,70}?)\s*(?:มี)?ข้อดีคือ\s*(.{2,100})$/i},
+ {kind:'limitation',link:'มีข้อจำกัดคือ',re:/^(.{2,70}?)\s*(?:มี)?ข้อจำกัดคือ\s*(.{2,100})$/i},
  {kind:'definition',link:'คือ',re:/^(.{2,70}?)\s*คือ\s*(.{2,100})$/i},
  {kind:'meaning',link:'หมายถึง',re:/^(.{2,70}?)\s*หมายถึง\s*(.{2,100})$/i},
  {kind:'function',link:'ทำหน้าที่',re:/^(.{2,70}?)\s*(?:มี)?ทำหน้าที่\s*(.{2,100})$/i},
+ {kind:'condition',link:'จะทำงานเมื่อ',re:/^(.{2,70}?)\s*จะทำงานเมื่อ\s*(.{2,100})$/i},
+ {kind:'condition',link:'ทำงานเมื่อ',re:/^(.{2,70}?)\s*ทำงานเมื่อ\s*(.{2,100})$/i},
+ {kind:'effect',link:'ส่งผลให้',re:/^(.{2,70}?)\s*ส่งผลให้\s*(.{2,100})$/i},
+ {kind:'effect',link:'ทำให้เกิด',re:/^(.{2,70}?)\s*ทำให้เกิด\s*(.{2,100})$/i},
+ {kind:'measurement',link:'ตรวจสอบด้วย',re:/^(.{2,70}?)\s*ตรวจสอบด้วย\s*(.{2,100})$/i},
+ {kind:'measurement',link:'วัดด้วย',re:/^(.{2,70}?)\s*วัดด้วย\s*(.{2,100})$/i},
+ {kind:'unit',link:'มีหน่วยเป็น',re:/^(.{2,70}?)\s*มีหน่วยเป็น\s*(.{1,80})$/i},
+ {kind:'value',link:'มีค่าเท่ากับ',re:/^(.{2,70}?)\s*มีค่าเท่ากับ\s*(.{1,80})$/i},
+ {kind:'procedure',link:'ก่อนดำเนินการต้อง',re:/^ก่อน\s*(.{2,70}?)\s*ต้อง\s*(.{2,100})$/i},
+ {kind:'safety',link:'ห้าม',re:/^(.{2,70}?)\s*ห้าม\s*(.{2,100})$/i},
+ {kind:'advantage',link:'มีข้อดีคือ',re:/^(.{2,70}?)\s*(?:มี)?ข้อดีคือ\s*(.{2,100})$/i},
+ {kind:'limitation',link:'มีข้อจำกัดคือ',re:/^(.{2,70}?)\s*(?:มี)?ข้อจำกัดคือ\s*(.{2,100})$/i},
+ {kind:'use',link:'ถูกนำไปใช้ใน',re:/^(.{2,70}?)\s*ถูกนำไปใช้ใน\s*(.{2,100})$/i},
+ {kind:'use',link:'ถูกใช้ใน',re:/^(.{2,70}?)\s*ถูกใช้ใน\s*(.{2,100})$/i},
+ {kind:'use',link:'นำไปใช้ใน',re:/^(.{2,70}?)\s*นำไปใช้ใน\s*(.{2,100})$/i},
+ {kind:'use',link:'นิยมใช้ใน',re:/^(.{2,70}?)\s*นิยมใช้ใน\s*(.{2,100})$/i},
+ {kind:'use',link:'ใช้ใน',re:/^(.{2,70}?)\s*ใช้ใน\s*(.{2,100})$/i},
+ {kind:'use',link:'ใช้กับ',re:/^(.{2,70}?)\s*ใช้กับ\s*(.{2,100})$/i},
  {kind:'use',link:'ใช้สำหรับ',re:/^(.{2,70}?)\s*ใช้สำหรับ\s*(.{2,100})$/i},
  {kind:'use',link:'ใช้เพื่อ',re:/^(.{2,70}?)\s*ใช้เพื่อ\s*(.{2,100})$/i},
  {kind:'classification',link:'แบ่งเป็น',re:/^(.{2,70}?)\s*(?:แบ่งออก)?เป็น\s*(.{2,100})$/i},
@@ -40,12 +60,12 @@ const sourcePatterns=[
  {kind:'principle',link:'อาศัย',re:/^(.{2,70}?)\s*อาศัย\s*(.{2,100})$/i}
 ];
 function cleanFact(x){return String(x||'').replace(/\s+/g,' ').replace(/[.!?。]+$/,'').trim()}
-function factSentences(raw){return String(raw||'').replace(/\r/g,'\n').trim().split(/(?:[.!?。;；]\s*|\n+)/).map(cleanFact).filter(x=>x.length>=12&&x.length<=260&&!summaryStart.test(x))}
+function factSentences(raw){return String(raw||'').replace(/\r/g,'\n').trim().split(/(?:[.!?。;；]\s*|\n+|(?=\s*(?:\d+|[ก-ฮ])\s*[.)]\s*))/).map(cleanFact).filter(x=>x.length>=12&&x.length<=260&&!summaryStart.test(x))}
 function facts(){const d=data(),ids=new Set(d.selected||[]);return(d.sources||[]).filter(s=>ids.has(s.id)&&(activeTopic===null||!s.topic||String(s.topic).trim()===String(activeTopic).trim())).flatMap(s=>factSentences(s.extract||s.snippet)).filter((x,i,a)=>a.indexOf(x)===i)}
 function structuredFacts(fs){
  const structured=(fs||[]).map(text=>{
    const sentence=cleanFact(text);if(sentence.length<12||sentence.length>180)return null;
-   for(const p of sourcePatterns){const m=sentence.match(p.re);if(!m)continue;const subject=cleanFact(m[1]).replace(/[,:;]+$/,''),answer=cleanFact(m[2]);if(subject.length<2||subject.length>70||answer.length<2||answer.length>100||/^ดังนั้น/.test(subject))continue;return{subject,answer,kind:p.kind,link:p.link,source:sentence,evidence:sentence}}
+   for(const p of sourcePatterns){const m=sentence.match(p.re);if(!m)continue;const subject=cleanFact(m[1]).replace(/^(?:โดยทั่วไป|ในทางปฏิบัติ|สำหรับงาน|ส่วน)\s*/,'').replace(/[,:;]+$/,''),answer=cleanFact(m[2]).replace(/^(?:ใน|กับ)\s+/,'');if(subject.length<2||subject.length>70||answer.length<2||answer.length>100||/^ดังนั้น/.test(subject))continue;return{subject,answer,kind:p.kind,link:p.link,source:sentence,evidence:sentence}}
    return null;
  }).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.subject===x.subject&&y.kind===x.kind&&y.answer===x.answer)===i);
  const allText=(fs||[]).join(' '),dcSubject='มอเตอร์กระแสตรง (DC motor)',dcEnergy=/มอเตอร์(?:ไฟฟ้า)?กระแสตรง|DC\s*motor/i.test(allText)&&/ไฟฟ้ากระแสตรง/.test(allText)&&/แรงกล|พลังงานกล/.test(allText);
@@ -96,23 +116,42 @@ function sourceItems(n){
    if(f.kind==='classification')return index%2?'ข้อใดกล่าวถูกต้องเกี่ยวกับการจำแนก '+f.subject:f.subject+' แบ่งเป็นอะไรบ้าง';
    if(f.kind==='composition')return index%2?'ข้อใดกล่าวถูกต้องเกี่ยวกับส่วนประกอบของ '+f.subject:f.subject+' ประกอบด้วยอะไรบ้าง';
    if(f.kind==='principle')return index%2?'ข้อใดกล่าวถูกต้องเกี่ยวกับหลักการทำงานของ '+f.subject:f.subject+' ทำงานโดยอาศัยอะไร';
+   if(f.kind==='condition')return index%2?'ข้อใดกล่าวถูกต้องเกี่ยวกับเงื่อนไขการทำงานของ '+f.subject:f.subject+' จะทำงานเมื่อใด';
+   if(f.kind==='effect')return index%2?'ข้อใดกล่าวถูกต้องเกี่ยวกับผลที่เกิดจาก '+f.subject:f.subject+' ทำให้เกิดผลใด';
+   if(f.kind==='measurement')return f.subject+' วัดหรือตรวจสอบด้วยสิ่งใด';
+   if(f.kind==='unit')return 'หน่วยของ '+f.subject+' คืออะไร';
+   if(f.kind==='value')return f.subject+' มีค่าเท่ากับเท่าใด';
+   if(f.kind==='procedure')return 'ก่อน'+f.subject+' ควรปฏิบัติอย่างไร';
+   if(f.kind==='safety')return 'ข้อใดเป็นข้อห้ามเกี่ยวกับ '+f.subject;
+   if(f.kind==='advantage')return 'ข้อดีของ '+f.subject+' คืออะไร';
+   if(f.kind==='limitation')return 'ข้อจำกัดของ '+f.subject+' คืออะไร';
    if(f.kind==='inputEnergy')return f.subject+' ใช้พลังงานชนิดใดเป็นพลังงานป้อนเข้า';
    if(f.kind==='outputEnergy')return f.subject+' ให้พลังงานชนิดใดเป็นพลังงานออก';
+   if(['ถูกนำไปใช้ใน','ถูกใช้ใน','นำไปใช้ใน','นิยมใช้ใน','ใช้ใน','ใช้กับ'].includes(f.link))return index%2?'ข้อใดกล่าวถูกต้องเกี่ยวกับการนำ '+f.subject+' ไปใช้งาน':f.subject+' ถูกนำไปใช้ในงานหรืออุปกรณ์ใด';
    return index%2?'ข้อใดกล่าวถูกต้องเกี่ยวกับการใช้งานของ '+f.subject:f.subject+' ใช้สำหรับอะไร';
  };
  const practiceQuestion=f=>{
    if(f.kind==='function')return'บันทึกผลการตรวจสอบหน้าที่ของ '+f.subject;
    if(f.kind==='inputEnergy')return'ระบุพลังงานป้อนเข้าที่ใช้ในการทำงานของ '+f.subject;
    if(f.kind==='outputEnergy')return'ระบุพลังงานออกที่ได้จาก '+f.subject;
-   if(f.kind==='use')return'ระบุการใช้งานของ '+f.subject;
+   if(f.kind==='use')return'ระบุงานหรืออุปกรณ์ที่ใช้ '+f.subject;
    if(f.kind==='classification')return'บันทึกผลการจำแนก '+f.subject;
    if(f.kind==='composition')return'ระบุส่วนประกอบสำคัญของ '+f.subject;
    if(f.kind==='principle')return'อธิบายหลักการทำงานของ '+f.subject+' ที่ตรวจสอบได้';
+   if(f.kind==='condition')return'บันทึกเงื่อนไขที่ทำให้ '+f.subject+' ทำงาน';
+   if(f.kind==='effect')return'บันทึกผลที่เกิดจาก '+f.subject;
+   if(f.kind==='measurement')return'ระบุเครื่องมือสำหรับวัดหรือตรวจสอบ '+f.subject;
+   if(f.kind==='unit')return'ระบุหน่วยวัดของ '+f.subject;
+   if(f.kind==='value')return'บันทึกค่าที่กำหนดของ '+f.subject;
+   if(f.kind==='procedure')return'บันทึกขั้นตอนที่ต้องทำก่อน '+f.subject;
+   if(f.kind==='safety')return'บันทึกข้อควรระวังเกี่ยวกับ '+f.subject;
+   if(f.kind==='advantage')return'ระบุข้อดีของ '+f.subject;
+   if(f.kind==='limitation')return'ระบุข้อจำกัดของ '+f.subject;
    return'บันทึกสาระสำคัญของ '+f.subject;
  };
  structured.forEach((fact,index)=>{
    if(isFill){if(fact.answer.length<=55)out.push({l:'remember',q:fact.subject+' '+fact.link+' ................',c:choicesFor(fact,index),a:fact.answer});return}
-   if(isQna){const q=fact.kind==='abbr'?'คำเต็มของ '+fact.subject+' คืออะไร':fact.kind==='function'?'หน้าที่ของ'+fact.subject+' คืออะไร':fact.kind==='use'?fact.subject+' ใช้สำหรับอะไร':fact.kind==='classification'?fact.subject+' แบ่งเป็นอะไรบ้าง':fact.kind==='composition'?fact.subject+' ประกอบด้วยอะไรบ้าง':fact.kind==='principle'?fact.subject+' ทำงานโดยอาศัยอะไร':fact.kind==='inputEnergy'?fact.subject+' ใช้พลังงานชนิดใดเป็นพลังงานป้อนเข้า':fact.kind==='outputEnergy'?fact.subject+' ให้พลังงานชนิดใดเป็นพลังงานออก':'อธิบายความหมายของ '+fact.subject+' โดยสังเขป';out.push({l:'understand',q,c:['คำตอบ','—','—','—'],a:fact.answer});return}
+   if(isQna){const q=fact.kind==='abbr'?'คำเต็มของ '+fact.subject+' คืออะไร':fact.kind==='function'?'หน้าที่ของ'+fact.subject+' คืออะไร':fact.kind==='use'?(['ถูกนำไปใช้ใน','ถูกใช้ใน','นำไปใช้ใน','นิยมใช้ใน','ใช้ใน','ใช้กับ'].includes(fact.link)?fact.subject+' ถูกนำไปใช้ในงานหรืออุปกรณ์ใด':fact.subject+' ใช้สำหรับอะไร'):fact.kind==='classification'?fact.subject+' แบ่งเป็นอะไรบ้าง':fact.kind==='composition'?fact.subject+' ประกอบด้วยอะไรบ้าง':fact.kind==='principle'?fact.subject+' ทำงานโดยอาศัยอะไร':fact.kind==='condition'?fact.subject+' จะทำงานเมื่อใด':fact.kind==='effect'?fact.subject+' ทำให้เกิดผลใด':fact.kind==='measurement'?fact.subject+' วัดหรือตรวจสอบด้วยสิ่งใด':fact.kind==='unit'?'หน่วยของ '+fact.subject+' คืออะไร':fact.kind==='value'?fact.subject+' มีค่าเท่ากับเท่าใด':fact.kind==='procedure'?'ก่อน'+fact.subject+' ต้องทำสิ่งใด':fact.kind==='safety'?'ข้อห้ามเกี่ยวกับ '+fact.subject+' คืออะไร':fact.kind==='advantage'?'ข้อดีของ '+fact.subject+' คืออะไร':fact.kind==='limitation'?'ข้อจำกัดของ '+fact.subject+' คืออะไร':fact.kind==='inputEnergy'?fact.subject+' ใช้พลังงานชนิดใดเป็นพลังงานป้อนเข้า':fact.kind==='outputEnergy'?fact.subject+' ให้พลังงานชนิดใดเป็นพลังงานออก':'อธิบายความหมายของ '+fact.subject+' โดยสังเขป';out.push({l:'understand',q,c:['คำตอบ','—','—','—'],a:fact.answer});return}
    if(isPractice){out.push({l:'apply',q:practiceQuestion(fact),c:['คำตอบ','—','—','—'],a:fact.answer});return}
    const choices=choicesFor(fact,index);if(choices.length===4)out.push({l:'remember',q:mcqQuestion(fact,index),c:choices,a:fact.answer});
  });
