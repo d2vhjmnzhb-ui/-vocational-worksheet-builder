@@ -60,7 +60,7 @@ const sourcePatterns=[
  {kind:'principle',link:'อาศัย',re:/^(.{2,70}?)\s*อาศัย\s*(.{2,100})$/i}
 ];
 function cleanFact(x){return String(x||'').replace(/\s+/g,' ').replace(/[.!?。]+$/,'').trim()}
-function factSentences(raw){return String(raw||'').replace(/\r/g,'\n').trim().split(/(?:[.!?。;；]\s*|\n+|(?=\s*(?:\d+|[ก-ฮ])\s*[.)]\s*))/).map(cleanFact).filter(x=>x.length>=12&&x.length<=260&&!summaryStart.test(x))}
+function factSentences(raw){return String(raw||'').replace(/\r/g,'\n').trim().split(/(?:[.!?。;；]\s*|\n+|(?=\s*(?:\d+|[ก-ฮ])\s*[.)]\s*))/).map(cleanFact).filter(x=>x.length>=12&&x.length<=1800&&!summaryStart.test(x))}
 function facts(){const d=data(),ids=new Set(d.selected||[]);return(d.sources||[]).filter(s=>ids.has(s.id)&&(activeTopic===null||!s.topic||String(s.topic).trim()===String(activeTopic).trim())).flatMap(s=>factSentences(s.extract||s.snippet)).filter((x,i,a)=>a.indexOf(x)===i)}
 function structuredFacts(fs){
  const structured=(fs||[]).map(text=>{
@@ -74,6 +74,17 @@ function structuredFacts(fs){
    {subject:dcSubject,answer:'พลังงานไฟฟ้ากระแสตรง',kind:'inputEnergy',link:'ใช้พลังงานป้อนเข้าเป็น',source:'มอเตอร์กระแสตรง (DC motor) ใช้พลังงานไฟฟ้ากระแสตรงเป็นพลังงานป้อนเข้า',evidence},
    {subject:dcSubject,answer:'พลังงานกล',kind:'outputEnergy',link:'ให้พลังงานออกเป็น',source:'มอเตอร์กระแสตรง (DC motor) ให้พลังงานออกเป็นพลังงานกล',evidence}
  ];for(const fact of dcFacts.slice().reverse())if(!structured.some(x=>x.subject===fact.subject&&x.kind===fact.kind&&x.answer===fact.answer))structured.unshift(fact)}
+ const clauseStart=/(?:มอเตอร์(?:ไฟฟ้า)?|หม้อแปลง|PLC|วงจร|ตัวต้านทาน|ตัวเก็บประจุ|ไดโอด|ทรานซิสเตอร์|รีเลย์|คอนแทคเตอร์|ความเร็ว|กระแส|แรงดัน|กำลัง|อุปกรณ์|ระบบ|การ(?:ทำงาน|วัด|ตรวจสอบ|ควบคุม|ต่อ)|ประเภท|ส่วนประกอบ|นอกจากนี้|โดยทั่วไป)/;
+ const passageFacts=[];
+ for(const raw of fs||[]){
+   if(String(raw).length<=180)continue;
+   const words=cleanFact(raw).split(/\s+/),parts=[],starts=[];
+   words.forEach((word,i)=>{if(i>0&&clauseStart.test(word))starts.push(i)});
+   const cuts=[0,...starts,words.length];
+   for(let i=0;i<cuts.length-1;i++){const part=words.slice(cuts[i],cuts[i+1]).join(' ').trim();if(part.length<28||part.length>105||/^(?:คือ|หมายถึง|เนื่องจาก|และ|หรือ|ที่|เพื่อ)/.test(part)||!/(?:คือ|หมายถึง|ใช้|ทำงาน|ควบคุม|วัด|ตรวจสอบ|ประกอบ|แบ่ง|ขึ้นอยู่กับ|สามารถ|มีระบบ|ให้พลังงาน|รับพลังงาน)/.test(part)||summaryStart.test(part))continue;parts.push(part)}
+   parts.slice(0,8).forEach(part=>{if(!structured.some(f=>f.answer===part||f.source===part)&&!passageFacts.some(f=>f.answer===part))passageFacts.push({subject:'สาระสำคัญจากเนื้อหาที่เลือก',answer:part,kind:'statement',link:'กล่าวว่า',source:part,evidence:part})})
+ }
+ structured.push(...passageFacts);
  return structured;
 }
 function factUses(fact){const uses=['ปรนัย','ถาม–ตอบ','ใบงานปฏิบัติ'];if(String(fact.answer||'').length<=55)uses.splice(2,0,'เติมคำ');return uses}
@@ -125,6 +136,7 @@ function sourceItems(n){
    if(f.kind==='safety')return 'ข้อใดเป็นข้อห้ามเกี่ยวกับ '+f.subject;
    if(f.kind==='advantage')return 'ข้อดีของ '+f.subject+' คืออะไร';
    if(f.kind==='limitation')return 'ข้อจำกัดของ '+f.subject+' คืออะไร';
+   if(f.kind==='statement')return 'ข้อใดกล่าวถูกต้องตามเนื้อหาที่เลือก';
    if(f.kind==='inputEnergy')return f.subject+' ใช้พลังงานชนิดใดเป็นพลังงานป้อนเข้า';
    if(f.kind==='outputEnergy')return f.subject+' ให้พลังงานชนิดใดเป็นพลังงานออก';
    if(['ถูกนำไปใช้ใน','ถูกใช้ใน','นำไปใช้ใน','นิยมใช้ใน','ใช้ใน','ใช้กับ'].includes(f.link))return index%2?'ข้อใดกล่าวถูกต้องเกี่ยวกับการนำ '+f.subject+' ไปใช้งาน':f.subject+' ถูกนำไปใช้ในงานหรืออุปกรณ์ใด';
@@ -147,11 +159,12 @@ function sourceItems(n){
    if(f.kind==='safety')return'บันทึกข้อควรระวังเกี่ยวกับ '+f.subject;
    if(f.kind==='advantage')return'ระบุข้อดีของ '+f.subject;
    if(f.kind==='limitation')return'ระบุข้อจำกัดของ '+f.subject;
+   if(f.kind==='statement')return'บันทึกสาระสำคัญที่ตรวจสอบได้จากเนื้อหา';
    return'บันทึกสาระสำคัญของ '+f.subject;
  };
  structured.forEach((fact,index)=>{
    if(isFill){if(fact.answer.length<=55)out.push({l:'remember',q:fact.subject+' '+fact.link+' ................',c:choicesFor(fact,index),a:fact.answer});return}
-   if(isQna){const q=fact.kind==='abbr'?'คำเต็มของ '+fact.subject+' คืออะไร':fact.kind==='function'?'หน้าที่ของ'+fact.subject+' คืออะไร':fact.kind==='use'?(['ถูกนำไปใช้ใน','ถูกใช้ใน','นำไปใช้ใน','นิยมใช้ใน','ใช้ใน','ใช้กับ'].includes(fact.link)?fact.subject+' ถูกนำไปใช้ในงานหรืออุปกรณ์ใด':fact.subject+' ใช้สำหรับอะไร'):fact.kind==='classification'?fact.subject+' แบ่งเป็นอะไรบ้าง':fact.kind==='composition'?fact.subject+' ประกอบด้วยอะไรบ้าง':fact.kind==='principle'?fact.subject+' ทำงานโดยอาศัยอะไร':fact.kind==='condition'?fact.subject+' จะทำงานเมื่อใด':fact.kind==='effect'?fact.subject+' ทำให้เกิดผลใด':fact.kind==='measurement'?fact.subject+' วัดหรือตรวจสอบด้วยสิ่งใด':fact.kind==='unit'?'หน่วยของ '+fact.subject+' คืออะไร':fact.kind==='value'?fact.subject+' มีค่าเท่ากับเท่าใด':fact.kind==='procedure'?'ก่อน'+fact.subject+' ต้องทำสิ่งใด':fact.kind==='safety'?'ข้อห้ามเกี่ยวกับ '+fact.subject+' คืออะไร':fact.kind==='advantage'?'ข้อดีของ '+fact.subject+' คืออะไร':fact.kind==='limitation'?'ข้อจำกัดของ '+fact.subject+' คืออะไร':fact.kind==='inputEnergy'?fact.subject+' ใช้พลังงานชนิดใดเป็นพลังงานป้อนเข้า':fact.kind==='outputEnergy'?fact.subject+' ให้พลังงานชนิดใดเป็นพลังงานออก':'อธิบายความหมายของ '+fact.subject+' โดยสังเขป';out.push({l:'understand',q,c:['คำตอบ','—','—','—'],a:fact.answer});return}
+   if(isQna){const q=fact.kind==='abbr'?'คำเต็มของ '+fact.subject+' คืออะไร':fact.kind==='function'?'หน้าที่ของ'+fact.subject+' คืออะไร':fact.kind==='use'?(['ถูกนำไปใช้ใน','ถูกใช้ใน','นำไปใช้ใน','นิยมใช้ใน','ใช้ใน','ใช้กับ'].includes(fact.link)?fact.subject+' ถูกนำไปใช้ในงานหรืออุปกรณ์ใด':fact.subject+' ใช้สำหรับอะไร'):fact.kind==='classification'?fact.subject+' แบ่งเป็นอะไรบ้าง':fact.kind==='composition'?fact.subject+' ประกอบด้วยอะไรบ้าง':fact.kind==='principle'?fact.subject+' ทำงานโดยอาศัยอะไร':fact.kind==='condition'?fact.subject+' จะทำงานเมื่อใด':fact.kind==='effect'?fact.subject+' ทำให้เกิดผลใด':fact.kind==='measurement'?fact.subject+' วัดหรือตรวจสอบด้วยสิ่งใด':fact.kind==='unit'?'หน่วยของ '+fact.subject+' คืออะไร':fact.kind==='value'?fact.subject+' มีค่าเท่ากับเท่าใด':fact.kind==='procedure'?'ก่อน'+fact.subject+' ต้องทำสิ่งใด':fact.kind==='safety'?'ข้อห้ามเกี่ยวกับ '+fact.subject+' คืออะไร':fact.kind==='advantage'?'ข้อดีของ '+fact.subject+' คืออะไร':fact.kind==='limitation'?'ข้อจำกัดของ '+fact.subject+' คืออะไร':fact.kind==='statement'?'จงบันทึกสาระสำคัญที่พบจากเนื้อหาที่เลือก':fact.kind==='inputEnergy'?fact.subject+' ใช้พลังงานชนิดใดเป็นพลังงานป้อนเข้า':fact.kind==='outputEnergy'?fact.subject+' ให้พลังงานชนิดใดเป็นพลังงานออก':'อธิบายความหมายของ '+fact.subject+' โดยสังเขป';out.push({l:'understand',q,c:['คำตอบ','—','—','—'],a:fact.answer});return}
    if(isPractice){out.push({l:'apply',q:practiceQuestion(fact),c:['คำตอบ','—','—','—'],a:fact.answer});return}
    const choices=choicesFor(fact,index);if(choices.length===4)out.push({l:'remember',q:mcqQuestion(fact,index),c:choices,a:fact.answer});
  });
