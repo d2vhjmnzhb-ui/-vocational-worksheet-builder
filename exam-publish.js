@@ -45,6 +45,7 @@
   <div class="exam-field"><label>ชื่อชุดข้อสอบ</label><input id="onlineExamTitle"></div>
   <div class="exam-grid"><div class="exam-field"><label>เวลาสอบ (นาที)</label><input id="onlineExamMinutes" type="number" min="1" max="300" value="50"></div><div class="exam-field"><label>ออกจากหน้าสอบครบกี่ครั้งให้ส่งอัตโนมัติ</label><input id="onlineExamMaxLeave" type="number" min="1" max="20" value="3"></div></div>
   <div class="exam-grid"><div class="exam-field"><label>แสดงคะแนนหลังส่ง</label><select id="onlineExamShowScore"><option value="yes">แสดง</option><option value="no">ไม่แสดง</option></select></div><div class="exam-field"><label>การเข้าสอบ</label><select id="onlineExamOneAttempt"><option value="yes">1 ครั้งต่อรหัสนักเรียน</option><option value="no">อนุญาตหลายครั้ง</option></select></div></div>
+  <div class="exam-field"><label>เฉลยหลังส่งข้อสอบ</label><select id="onlineExamAllowReview"><option value="no" selected>ไม่แสดงเฉลยให้นักเรียน</option><option value="yes">ให้นักเรียนดูเฉลยและไล่ดูคำตอบหลังส่ง</option></select><div class="exam-muted">เฉลยจะไม่แสดงระหว่างทำข้อสอบ และจะแสดงได้หลังส่งเท่านั้น</div></div>
   <div class="exam-result" id="onlineExamResult"></div><div class="exam-actions"><button type="button" class="exam-cancel" id="examModalCancel">ปิด</button><button type="button" class="exam-confirm" id="examModalPublish">เผยแพร่</button></div></div>`;
   document.body.appendChild(modal);
   $('examModalCancel').onclick=()=>modal.classList.remove('open');modal.onclick=e=>{if(e.target===modal)modal.classList.remove('open')};
@@ -66,7 +67,7 @@
       const questions=readQuestions();if(!questions.length)throw new Error('ไม่พบข้อสอบปรนัยพร้อมเฉลย');
       const title=$('onlineExamTitle').value.trim();if(!title)throw new Error('กรุณาใส่ชื่อชุดข้อสอบ');
       btn.disabled=true;btn.textContent='กำลังเผยแพร่...';result.style.display='block';result.textContent='กำลังบันทึกข้อสอบ...';
-      const examId=makeExamId();const d=await createExamNoCors({action:'createExam',examId,title,subject:getMeta('subject'),code:getMeta('code'),level:getMeta('level'),year:getMeta('year'),topic:getMeta('topic'),duration:+$('onlineExamMinutes').value||50,maxLeave:+$('onlineExamMaxLeave').value||3,showScore:$('onlineExamShowScore').value==='yes',oneAttempt:$('onlineExamOneAttempt').value==='yes',questions});
+      const examId=makeExamId();const d=await createExamNoCors({action:'createExam',examId,title,subject:getMeta('subject'),code:getMeta('code'),level:getMeta('level'),year:getMeta('year'),topic:getMeta('topic'),duration:+$('onlineExamMinutes').value||50,maxLeave:+$('onlineExamMaxLeave').value||3,showScore:$('onlineExamShowScore').value==='yes',oneAttempt:$('onlineExamOneAttempt').value==='yes',allowReview:$('onlineExamAllowReview').value==='yes',questions});
       if(!d.ok)throw new Error(d.error||'เผยแพร่ไม่สำเร็จ');
       const finalExamId=(d&&d.exam&&d.exam.examId)||d.examId||examId;
       const base=new URL(STUDENT_EXAM_URL,location.href).href,link=base+(base.includes('?')?'&':'?')+'exam='+encodeURIComponent(finalExamId);
