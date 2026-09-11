@@ -171,7 +171,7 @@ function sourceItems(n){
    const choices=choicesFor(fact,index);if(choices.length===4)out.push({l:'remember',q:mcqQuestion(fact,index),c:choices,a:fact.answer});
  });
  if(!isFill&&!isQna&&!isPractice){const grouped=new Map();structured.forEach(f=>{const items=grouped.get(f.subject)||[];items.push(f);grouped.set(f.subject,items)});let groupIndex=0;for(const [subject,items] of grouped){const truths=uniq(items.map(statement));if(truths.length<3)continue;const wrong=negate(items[groupIndex%items.length]);out.push({l:'analyze',q:'ข้อใดกล่าวไม่ถูกต้องเกี่ยวกับ '+subject,c:[wrong,...truths.slice(0,3)],a:wrong});groupIndex++}}
- return out.filter((x,i,a)=>x.c&&x.c.length===4&&a.findIndex(y=>y.q===x.q)===i).slice(0,Math.max(n,1));
+ return out.filter((x,i,a)=>x.c&&x.c.length===4&&a.findIndex(y=>y.q===x.q&&y.a===x.a)===i).slice(0,Math.max(n,1));
 }
 function legacyQuestions(useFacts){const n=Math.max(1,Math.min(60,window.worksheetStudio?.activeCount??(+$('count').value||1)));if(!useFacts||!facts().length)return[];return sourceItems(n).slice(0,n)}
 function sourcePlan(limit){
