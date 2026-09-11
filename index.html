@@ -89,9 +89,9 @@
     fields.forEach(id=>$(id).addEventListener('input',()=>{clearTimeout(window.rt);window.rt=setTimeout(()=>window.render(),180)}));try{const d=JSON.parse(localStorage.getItem('vocWorksheetDraft'));if(d)fields.forEach(id=>{if(d[id]!=null)$(id).value=d[id]})}catch(e){}render();
   </script>
   <script src="./html2pdf.bundle.min.js"></script>
-  <script src="./research.js?v=20260911v26"></script>
-  <script src="./quality-v2.js?v=20260911v26"></script>
-  <link rel="stylesheet" href="./studio.css?v=20260911v26">
+  <script src="./research.js?v=20260911v27"></script>
+  <script src="./quality-v2.js?v=20260911v27"></script>
+  <link rel="stylesheet" href="./studio.css?v=20260911v27">
   <style>
     /* ถาม–ตอบ: คำว่า ตอบ: และเส้นเดียวต่อเนื่องกัน */
     .answer-inline{display:flex;align-items:flex-end;gap:7px;margin-top:8px;max-width:160mm;min-height:18px;font-size:12px}.answer-inline b{white-space:nowrap}.answer-inline span{display:block;flex:1;border-bottom:1px dotted #718391;height:15px}
@@ -105,8 +105,8 @@
     .map-space{position:relative;height:29mm;margin:0;border:1.5px solid var(--branch,#6eb7d4);border-radius:9px;background:repeating-linear-gradient(to bottom,transparent 0,transparent 7mm,#b8cbd5 7mm,#b8cbd5 7.35mm),#ffffffeb;box-shadow:0 3px 8px #355c7410}
     .map-space:before,.map-space:after{display:none}
   </style>
-  <script src="./studio.js?v=20260911v26"></script>
-  <script src="./manual.js?v=20260911v26"></script>
-  <script src="./pdf-fix.js?v=20260911v26"></script>
+  <script src="./studio.js?v=20260911v27"></script>
+  <script src="./manual.js?v=20260911v27"></script>
+  <script src="./pdf-fix.js?v=20260911v27"></script>
 </body>
 </html>
