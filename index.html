@@ -59,7 +59,7 @@
         <p class="build-note">กด “ดูส่วนที่ใช้สร้างโจทย์” ใต้แต่ละเนื้อหาเพื่อเช็กข้อความที่ระบบอ่านได้และรูปแบบคำถามที่ใช้ได้</p>
         <button class="btn generate ai-generate" id="aiGenerateBtn">สร้างเอกสารจากเนื้อหาที่เลือก</button>
       </div>
-      <button class="btn generate" id="generateBtn">อัปเดตตัวอย่างจากเนื้อหาที่เลือก</button>
+      <button class="btn generate" id="generateBtn">สร้าง/อัปเดตจากเนื้อหาที่เลือก</button>
     </aside>
     <section class="preview-wrap">
       <div class="preview-head"><h2>ตัวอย่างเอกสาร A4</h2><div class="tabs"><button class="tab active" data-view="student">ใบงานนักเรียน</button><button class="tab" data-view="teacher">เฉลยสำหรับครู</button></div></div>
@@ -80,18 +80,18 @@
       'แบบผสม':{instruction:'ทำแบบฝึกหัดทุกส่วนตามคำสั่งของแต่ละข้อ พร้อมแสดงวิธีคิดเมื่อมีการคำนวณ',objectives:['อธิบายและประยุกต์ใช้ความรู้ในหัวข้อที่กำหนดได้','วิเคราะห์และแก้ปัญหาทางวิชาชีพอย่างเป็นระบบได้']}
     };
     const mcq=[['ข้อใดอธิบายความสัมพันธ์ตามกฎของโอห์มได้ถูกต้อง','แรงดันเท่ากับกระแสคูณความต้านทาน','กระแสเท่ากับแรงดันคูณความต้านทาน','ความต้านทานเท่ากับกำลังหารกระแส','แรงดันไม่สัมพันธ์กับกระแส','ก'],['เมื่อแรงดันคงที่และความต้านทานเพิ่มขึ้น กระแสไฟฟ้าจะเป็นอย่างไร','เพิ่มขึ้น','ลดลง','คงที่','เป็นศูนย์เสมอ','ข'],['หน่วยของความต้านทานไฟฟ้าคือข้อใด','โวลต์','แอมแปร์','โอห์ม','วัตต์','ค'],['วงจรมีแรงดัน 12 V และความต้านทาน 6 Ω จะมีกระแสเท่าใด','0.5 A','2 A','6 A','72 A','ข']];
-    function qData(i,type,topic){const n=i%4;if(type.includes('ปรนัย'))return mcq[n];if(type==='เติมคำ')return [`คำสำคัญเรื่อง ${topic} คือ ................`,null,null,null,null,'แนวคำตอบ: ระบุคำศัพท์หรือสาระสำคัญให้สอดคล้องกับหัวข้อ'];if(type==='ถาม–ตอบ')return [`อธิบายหลักการสำคัญของ ${topic} โดยสังเขป`,null,null,null,null,'แนวคำตอบ: กล่าวถึงหลักการสำคัญให้ครบใจความ'];if(type==='คำนวณ')return [`จงคำนวณค่าที่เกี่ยวข้องกับ ${topic} จากข้อมูลที่กำหนด พร้อมแสดงวิธีทำ`,null,null,null,null,'แนวคำตอบ: ระบุสูตร แทนค่า คำนวณ และใส่หน่วยครบถ้วน'];if(type==='ใบงานปฏิบัติ')return [`ปฏิบัติงานเกี่ยวกับ ${topic} ขั้นตอนที่ ${i+1} พร้อมบันทึกผลที่สังเกตได้`,null,null,null,null,'แนวตรวจ: ขั้นตอนถูกต้อง ปลอดภัย และบันทึกผลครบ'];if(type==='วิเคราะห์')return [`จากสถานการณ์การทำงานเกี่ยวกับ ${topic} จงวิเคราะห์สาเหตุและเสนอแนวทางแก้ไข`,null,null,null,null,'แนวคำตอบ: ระบุสาเหตุ เชื่อมโยงหลักการ และเสนอวิธีที่ปฏิบัติได้'];if(type==='แบบผสม'&&i%2===0)return mcq[n];return [`อธิบายหลักการสำคัญของ ${topic} พร้อมยกตัวอย่างการนำไปใช้`,null,null,null,null,'แนวคำตอบ: กล่าวถึงหลักการสำคัญและตัวอย่างที่สอดคล้อง'];}
+    function qData(i,type,topic){const waiting=['รอสร้างจากเนื้อหาที่เลือก','เพิ่มหรือเลือกเนื้อหาด้านซ้าย','กดปุ่ม “สร้างจากเนื้อหาที่เลือก”','ระบบจะไม่ใช้โจทย์ตัวอย่างข้ามหัวข้อ','ตรวจส่วนที่ไฮไลต์ใต้เนื้อหาก่อนสร้าง','ยังไม่สร้างข้อสอบ'];if(type.includes('ปรนัย'))return waiting;if(type==='เติมคำ')return [`กรุณาเพิ่มเนื้อหาก่อนสร้างใบงานเรื่อง ${topic}`,null,null,null,null,'ระบบจะแสดงช่องเติมคำจากข้อความที่เลือก'];if(type==='ถาม–ตอบ')return [`กรุณาเพิ่มเนื้อหาก่อนสร้างใบงานเรื่อง ${topic}`,null,null,null,null,'ระบบจะแสดงคำถามจากข้อความที่เลือก'];if(type==='คำนวณ')return [`กรุณาเพิ่มเนื้อหาที่มีข้อมูลคำนวณก่อนสร้างใบงานเรื่อง ${topic}`,null,null,null,null,'ระบบจะไม่สร้างโจทย์คำนวณเองหากไม่มีข้อมูลในเนื้อหา'];if(type==='ใบงานปฏิบัติ')return [`กรุณาเพิ่มเนื้อหาก่อนสร้างใบงานเรื่อง ${topic}`,null,null,null,null,'ระบบจะสร้างขั้นปฏิบัติจากเนื้อหาที่เลือก'];if(type==='วิเคราะห์')return [`กรุณาเพิ่มเนื้อหาก่อนสร้างใบงานเรื่อง ${topic}`,null,null,null,null,'ระบบจะสร้างคำถามวิเคราะห์จากเนื้อหาที่เลือก'];if(type==='แบบผสม')return waiting;return [`กรุณาเพิ่มเนื้อหาก่อนสร้างใบงานเรื่อง ${topic}`,null,null,null,null,'ระบบจะสร้างคำถามจากเนื้อหาที่เลือก'];}
     function esc(s){return String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))}
     function render(){const v=Object.fromEntries(fields.map(id=>[id,$(id).value.trim()]));v.count=Math.max(1,Math.min(60,Number(v.count)||1));$('count').value=v.count;const p=presets[v.type];let qs='';for(let i=0;i<v.count;i++){const q=qData(i,v.type,v.topic);const choices=q[1]?`<div class="choices"><span>ก. ${q[1]}</span><span>ข. ${q[2]}</span><span>ค. ${q[3]}</span><span>ง. ${q[4]}</span></div>`:(v.type==='ถาม–ตอบ'?'<div class="answer-inline"><b>ตอบ:</b><span></span></div>':v.type==='เติมคำ'?'':'<div class="answer-lines"><span>................................................................................................</span></div>');qs+=`<li>${esc(q[0])}${choices}<div class="answer"><b>เฉลย:</b> ${esc(q[5])}</div></li>`}
       $('paper').innerHTML=`<div class="teacher-badge">เอกสารสำหรับครู • มีแนวคำตอบกำกับทุกข้อ</div><header class="doc-header"><div class="crest">⚡</div><div class="doc-title"><h1>${esc(v.school)}</h1><p>แผนกวิชา${esc(v.department)} • ใบงานรายวิชา</p></div><div class="doc-no">ใบงานที่<br><b>01</b></div></header><div class="student-line"><span>ชื่อ–สกุล <i class="blank"></i></span><span>ชั้น ${esc(v.level)} ${esc(v.year)} / <i class="blank" style="min-width:32px"></i></span><span>เลขที่ <i class="blank" style="min-width:35px"></i></span></div><section class="doc-meta"><h2>${esc(v.topic)}</h2><p><b>วิชา:</b> ${esc(v.subject)} &nbsp; <b>รหัส:</b> ${esc(v.code)} &nbsp; <b>ระดับ:</b> ${esc(v.level)} ชั้นปีที่ ${esc(v.year)}</p><p><b>ประเภท:</b> ${esc(v.type)} &nbsp; <b>ระดับความยาก:</b> ${esc(v.difficulty)}</p></section><section class="block"><h3>คำชี้แจง</h3><p>${p.instruction} จำนวน ${v.count} ข้อ คะแนนเต็ม ${v.count} คะแนน</p></section><section class="block"><h3>ความรู้เบื้องต้น</h3><p>${esc(v.topic)} เป็นเนื้อหาสำคัญที่ผู้เรียนควรเข้าใจทั้งหลักการ คำศัพท์ และการประยุกต์ใช้ในงานอาชีพ ควรพิจารณาข้อมูลที่โจทย์กำหนด เลือกหลักการที่เหมาะสม และตรวจสอบคำตอบทุกครั้ง</p></section><section class="block"><h3>แบบฝึกหัด</h3><ol class="exercise">${qs}</ol></section><div class="scorebox">คะแนนที่ได้ ______ / ${v.count} คะแนน<br>ผู้ตรวจ __________________</div>`;localStorage.setItem('vocWorksheetDraft',JSON.stringify(v));}
     document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('paper').classList.toggle('teacher',t.dataset.view==='teacher')});
     $('generateBtn').onclick=render;$('printBtn').onclick=()=>window.print();$('resetBtn').onclick=()=>{if(confirm('ต้องการล้างข้อมูลและกลับค่าเริ่มต้นหรือไม่?')){localStorage.removeItem('vocWorksheetDraft');location.reload()}};
-    fields.forEach(id=>$(id).addEventListener('input',()=>{clearTimeout(window.rt);window.rt=setTimeout(render,180)}));try{const d=JSON.parse(localStorage.getItem('vocWorksheetDraft'));if(d)fields.forEach(id=>{if(d[id]!=null)$(id).value=d[id]})}catch(e){}render();
+    fields.forEach(id=>$(id).addEventListener('input',()=>{clearTimeout(window.rt);window.rt=setTimeout(()=>window.render(),180)}));try{const d=JSON.parse(localStorage.getItem('vocWorksheetDraft'));if(d)fields.forEach(id=>{if(d[id]!=null)$(id).value=d[id]})}catch(e){}render();
   </script>
   <script src="./html2pdf.bundle.min.js"></script>
-  <script src="./research.js?v=20260910v17"></script>
-  <script src="./quality-v2.js?v=20260910v17"></script>
-  <link rel="stylesheet" href="./studio.css?v=20260910v17">
+  <script src="./research.js?v=20260910v18"></script>
+  <script src="./quality-v2.js?v=20260910v18"></script>
+  <link rel="stylesheet" href="./studio.css?v=20260910v18">
   <style>
     /* ถาม–ตอบ: คำว่า ตอบ: และเส้นเดียวต่อเนื่องกัน */
     .answer-inline{display:flex;align-items:flex-end;gap:7px;margin-top:8px;max-width:160mm;min-height:18px;font-size:12px}.answer-inline b{white-space:nowrap}.answer-inline span{display:block;flex:1;border-bottom:1px dotted #718391;height:15px}
@@ -105,8 +105,8 @@
     .map-space{position:relative;height:29mm;margin:0;border:1.5px solid var(--branch,#6eb7d4);border-radius:9px;background:repeating-linear-gradient(to bottom,transparent 0,transparent 7mm,#b8cbd5 7mm,#b8cbd5 7.35mm),#ffffffeb;box-shadow:0 3px 8px #355c7410}
     .map-space:before,.map-space:after{display:none}
   </style>
-  <script src="./studio.js?v=20260910v17"></script>
-  <script src="./manual.js?v=20260910v17"></script>
-  <script src="./pdf-fix.js?v=20260910v17"></script>
+  <script src="./studio.js?v=20260910v18"></script>
+  <script src="./manual.js?v=20260910v18"></script>
+  <script src="./pdf-fix.js?v=20260910v18"></script>
 </body>
 </html>
