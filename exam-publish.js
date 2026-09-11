@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const EXAM_API_URL = 'PUT_YOUR_APPS_SCRIPT_EXEC_URL_HERE';
+  const EXAM_API_URL = 'https://script.google.com/macros/s/AKfycbxunyrg12A_Fv4fM-6GZZ4rVXz07-EN_rRGsTbBQZmsLcjFnLeLgNX3t-vyHH8d7Xfqgw/exec';
   const STUDENT_EXAM_URL = './student-exam.html';
   const $ = id => document.getElementById(id);
   const txt = el => (el?.textContent || '').trim();
