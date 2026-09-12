@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id);
 let slides=[],cur=0,theme='blue',researchPoints=[],researchSources=[];
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const defaults=()=>({img:'',imagePos:'50% 50%',fade:68,fadeDir:'left',titleSize:54,bodySize:20,imageMode:'editorial'});
+const defaults=()=>({img:'',imageX:50,imageY:50,imageZoom:100,fade:68,fadeDir:'left',titleSize:54,bodySize:20,imageMode:'editorial'});
 function seed(){
  const subject=$('subject')?.value||'รายวิชาอาชีวศึกษา',topic=$('topic')?.value||'หัวข้อการเรียนรู้',code=$('code')?.value||'',level=$('level')?.value||'',school=$('school')?.value||'วิทยาลัยเทคนิคปากช่อง';
  slides=[
@@ -34,8 +34,8 @@ function slideHTML(s,i){
  else body=`<p>${esc(s.b)}</p>`;
  const hasImg=!!s.img;
  return `<div class="slide ${s.type==='cover'?'cover':''} ${hasImg?'has-image':'no-image'} image-${s.imageMode||'editorial'}" data-theme="${theme}">
-   <div class="ss-bg" style="${hasImg?`background-image:url('${s.img}');background-position:${s.imagePos||'50% 50%'};`:''}"></div>
-   ${hasImg?`<div class="ss-fade" style="background:${gradient(s)}"></div>`:''}
+   <div class="ss-bg" style="${hasImg?`background-image:url('${s.img}');background-position:${Number(s.imageX??50)}% ${Number(s.imageY??50)}%;background-size:${Number(s.imageZoom||100)}% auto;`:''}"></div>
+   ${hasImg?`<div class="ss-fade" style="background:${gradient(s)}"></div><button class="ss-image-hit" data-image-hit="1" title="ลากเพื่อจัดตำแหน่งภาพ"><span>ลากภาพเพื่อจัดตำแหน่ง</span></button>`:''}
    <div class="ss-slide-brand"><img src="./pic-logo.png" alt="logo"><div><b>${esc($('school')?.value||'วิทยาลัยเทคนิคปากช่อง')}</b><span>PAKCHONG TECHNICAL COLLEGE</span></div></div>
    <div class="ss-content"><div class="kicker">${esc(s.k)}</div><div class="accent"></div><h${s.type==='cover'?1:2} style="font-size:${Number(s.titleSize||54)}px">${esc(s.t)}</h${s.type==='cover'?1:2}><div class="ss-bodycopy" style="font-size:${Number(s.bodySize||20)}px">${body}</div></div>
    <div class="visual" data-upload-zone="1" title="คลิกเพื่อใส่รูป">${hasImg?'':placeholder(s.t)}</div>
@@ -65,8 +65,23 @@ function render(){
  if($('ssimageMode'))$('ssimageMode').value=s.imageMode||'editorial';
  $('ssimgState').textContent=s.img?'มีภาพในสไลด์นี้ • คลิกบนภาพเพื่อเปลี่ยน':'ยังไม่มีภาพ • คลิกช่องรูปบนสไลด์เพื่อเพิ่ม';
  const zone=$('sscanvas').querySelector('[data-upload-zone]'); if(zone)zone.onclick=()=>{$('ssimage').click()};
- const bg=$('sscanvas').querySelector('.ss-bg'); if(bg&&s.img){bg.style.cursor='pointer';bg.title='คลิกเพื่อเปลี่ยนรูป';bg.onclick=()=>{$('ssimage').click()}};
+ const bg=$('sscanvas').querySelector('.ss-bg'); if(bg&&s.img){bg.style.cursor='grab';}
+ const hit=$('sscanvas').querySelector('[data-image-hit]'); if(hit&&s.img)bindImageDrag(hit,s);
+ if($('sszoom')){$('sszoom').value=s.imageZoom||100;$('sszoomValue').textContent=(s.imageZoom||100)+'%'}
+ if($('ssposx')){$('ssposx').value=s.imageX??50;$('ssposxValue').textContent=Math.round(s.imageX??50)+'%'}
+ if($('ssposy')){$('ssposy').value=s.imageY??50;$('ssposyValue').textContent=Math.round(s.imageY??50)+'%'}
 }
+
+function bindImageDrag(el,s){
+ let active=false,lastX=0,lastY=0;
+ const start=e=>{active=true;const p=e.touches?e.touches[0]:e;lastX=p.clientX;lastY=p.clientY;el.classList.add('dragging');e.preventDefault()};
+ const move=e=>{if(!active)return;const p=e.touches?e.touches[0]:e;const r=$('sscanvas').getBoundingClientRect();s.imageX=Math.max(0,Math.min(100,(s.imageX??50)+(p.clientX-lastX)/r.width*100));s.imageY=Math.max(0,Math.min(100,(s.imageY??50)+(p.clientY-lastY)/r.height*100));lastX=p.clientX;lastY=p.clientY;const bg=$('sscanvas').querySelector('.ss-bg');if(bg)bg.style.backgroundPosition=`${s.imageX}% ${s.imageY}%`;e.preventDefault()};
+ const end=()=>{if(!active)return;active=false;el.classList.remove('dragging');save();render()};
+ el.addEventListener('pointerdown',start);window.addEventListener('pointermove',move,{passive:false});window.addEventListener('pointerup',end);
+ el.addEventListener('touchstart',start,{passive:false});window.addEventListener('touchmove',move,{passive:false});window.addEventListener('touchend',end);
+}
+function setImagePreset(x,y){slides[cur].imageX=x;slides[cur].imageY=y;save();render()}
+
 function open(){
  if(!slides.length){try{slides=JSON.parse(localStorage.getItem('vocSlidesV36')||localStorage.getItem('vocSlidesV35')||'[]')}catch{};theme=localStorage.getItem('vocSlideThemeV36')||localStorage.getItem('vocSlideThemeV35')||'blue';if(!slides.length)seed();slides=slides.map(s=>({...defaults(),...s}));}
  $('slideStudio').classList.add('open');render();
@@ -104,7 +119,7 @@ document.addEventListener('DOMContentLoaded',()=>{
    <main class="sscenter"><div class="sseditbar"><span>สไลด์ปัจจุบัน</span><button id="ssquickUpload">▣ เพิ่มภาพ</button><button id="ssquickGoogle">G ค้น Google</button><button id="ssquickAI">✦ AI สร้างภาพ</button></div><div class="sscanvas" id="sscanvas"></div><div class="sseditpanel"><div><label>หัวข้อหลัก</label><input id="sstitle"></div><div><label>เนื้อหา</label><textarea id="ssbodytext"></textarea></div><div><label>รูปแบบ</label><select id="sstype"><option value="cover">หน้าปก</option><option value="visual">ข้อความ + ภาพ</option><option value="bullets">หัวข้อย่อย</option><option value="cards">การ์ดข้อมูล</option></select></div><div class="ss-font-control"><label>ขนาดหัวข้อ <b id="sstitleSizeValue">54 px</b></label><input id="sstitleSize" type="range" min="28" max="78" value="54"></div><div class="ss-font-control"><label>ขนาดเนื้อหา <b id="ssbodySizeValue">20 px</b></label><input id="ssbodySize" type="range" min="12" max="34" value="20"></div><button class="ssapply" id="ssapply">อัปเดตสไลด์</button></div></main>
    <aside class="ssright">
     <div class="ss-tabs"><button class="active" data-sstab="image">รูปภาพ</button><button data-sstab="content">เนื้อหา</button><button data-sstab="style">สไตล์</button></div>
-    <section id="sstab-image" class="sstabpane active"><h3>รูปภาพสไลด์</h3><p class="ssmuted" id="ssimgState"></p><div class="sssourceBtns"><button class="ssaction ai" id="ssaiimage">✦ สร้างภาพด้วย AI</button><button class="ssaction" id="ssgoogleimg">G ค้น Google Images</button><label class="ssaction upload">▣ อัปโหลดเอง<input id="ssimage" type="file" accept="image/*"></label></div><div class="ssnote"><b>ใส่รูปง่าย:</b> คลิกช่องรูปบนสไลด์ได้โดยตรง ภาพจะถูกครอบอัตโนมัติและมีแถบไล่เฟดช่วยอ่านข้อความ</div><div class="sscontrol"><label>การวางภาพ</label><select id="ssimageMode"><option value="editorial">Editorial เต็มพื้นหลัง + เฟด</option><option value="split">Split ภาพด้านขวา</option><option value="panel">Panel ภาพในกรอบ</option></select></div><div class="sscontrol"><label>แถบไล่เฟดทับภาพ <b id="ssfadeValue">68%</b></label><input id="ssfade" type="range" min="0" max="100" value="62"></div><div class="sscontrol"><label>ทิศทางเฟด</label><select id="ssfadeDir"><option value="left">ซ้าย → ขวา</option><option value="right">ขวา → ซ้าย</option><option value="top">บน → ล่าง</option><option value="bottom">ล่าง → บน</option></select></div><button class="ssaction danger" id="ssremoveimg">ลบรูปออกจากสไลด์</button></section>
+    <section id="sstab-image" class="sstabpane active"><h3>รูปภาพสไลด์</h3><p class="ssmuted" id="ssimgState"></p><div class="sssourceBtns"><button class="ssaction ai" id="ssaiimage">✦ สร้างภาพด้วย AI</button><button class="ssaction" id="ssgoogleimg">G ค้น Google Images</button><label class="ssaction upload">▣ อัปโหลดเอง<input id="ssimage" type="file" accept="image/*"></label></div><div class="ssnote"><b>ใส่รูปง่าย:</b> ถ้ายังไม่มีภาพ จะเห็นปุ่ม + เพิ่มรูปภาพบนสไลด์ เมื่อใส่แล้วลากภาพด้วยนิ้ว/เมาส์เพื่อจัดตำแหน่งได้</div><div class="ss-image-controls"><div class="sscontrol"><label>ซูมภาพ <b id="sszoomValue">100%</b></label><input id="sszoom" type="range" min="100" max="240" value="100"></div><div class="sscontrol"><label>ตำแหน่งแนวนอน <b id="ssposxValue">50%</b></label><input id="ssposx" type="range" min="0" max="100" value="50"></div><div class="sscontrol"><label>ตำแหน่งแนวตั้ง <b id="ssposyValue">50%</b></label><input id="ssposy" type="range" min="0" max="100" value="50"></div><div class="ss-presets"><button data-pos="0,50">ซ้าย</button><button data-pos="50,50">กลาง</button><button data-pos="100,50">ขวา</button><button data-pos="50,0">บน</button><button data-pos="50,100">ล่าง</button></div></div><div class="sscontrol"><label>การวางภาพ</label><select id="ssimageMode"><option value="editorial">Editorial เต็มพื้นหลัง + เฟด</option><option value="split">Split ภาพด้านขวา</option><option value="panel">Panel ภาพในกรอบ</option></select></div><div class="sscontrol"><label>แถบไล่เฟดทับภาพ <b id="ssfadeValue">68%</b></label><input id="ssfade" type="range" min="0" max="100" value="62"></div><div class="sscontrol"><label>ทิศทางเฟด</label><select id="ssfadeDir"><option value="left">ซ้าย → ขวา</option><option value="right">ขวา → ซ้าย</option><option value="top">บน → ล่าง</option><option value="bottom">ล่าง → บน</option></select></div><button class="ssaction danger" id="ssremoveimg">ลบรูปออกจากสไลด์</button></section>
     <section id="sstab-content" class="sstabpane"><h3>หาเนื้อหา</h3><div class="sssourceBtns"><button class="ssaction ai" id="ssai">เปิด AI พร้อมคำสั่ง</button><button class="ssaction" id="ssgoogle">G ค้น Google</button></div><textarea class="sspaste" id="sspasted" placeholder="วางข้อความจาก AI / เอกสาร / เว็บไซต์ตรงนี้"></textarea><div class="ssrow"><button class="sssmall" id="ssusepaste">วิเคราะห์ข้อความ</button><button class="sssmall" id="sssearch">ค้น Wikipedia</button></div><input id="ssquery" class="ssinput" placeholder="คำค้น: ชื่อวิชา + หัวข้อ"><div id="ssresults" class="ssresults"></div><div id="sssourceLinks" class="sssourceLinks"></div><button class="ssaction ai" id="ssbuildcontent">สร้างสไลด์จากประเด็นที่เลือก</button></section>
     <section id="sstab-style" class="sstabpane"><h3>ชุดรูปแบบ</h3><div class="ssthemes"><button data-theme="blue" class="active"><span class="theme blue"></span><b>Modern Blue</b></button><button data-theme="dark"><span class="theme dark"></span><b>Dark Tech</b></button><button data-theme="warm"><span class="theme warm"></span><b>Warm Classroom</b></button><button data-theme="minimal"><span class="theme minimal"></span><b>Minimal Clean</b></button></div><select id="sstheme" hidden><option value="blue">blue</option><option value="dark">dark</option><option value="warm">warm</option><option value="minimal">minimal</option></select></section>
    </aside>
@@ -116,6 +131,10 @@ document.addEventListener('DOMContentLoaded',()=>{
  $('sstitleSize').oninput=e=>{slides[cur].titleSize=Number(e.target.value);render()};
  $('ssbodySize').oninput=e=>{slides[cur].bodySize=Number(e.target.value);render()};
  $('ssimageMode').onchange=e=>{slides[cur].imageMode=e.target.value;render()};
+ if($('sszoom'))$('sszoom').oninput=e=>{slides[cur].imageZoom=Number(e.target.value);render()};
+ if($('ssposx'))$('ssposx').oninput=e=>{slides[cur].imageX=Number(e.target.value);render()};
+ if($('ssposy'))$('ssposy').oninput=e=>{slides[cur].imageY=Number(e.target.value);render()};
+ document.querySelectorAll('[data-pos]').forEach(b=>b.onclick=()=>{const [x,y]=b.dataset.pos.split(',').map(Number);setImagePreset(x,y)});
  document.querySelectorAll('[data-sstab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-sstab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.sstabpane').forEach(x=>x.classList.remove('active'));$('sstab-'+b.dataset.sstab).classList.add('active')});
  document.querySelectorAll('[data-theme]').forEach(b=>b.onclick=()=>{theme=b.dataset.theme;document.querySelectorAll('[data-theme]').forEach(x=>x.classList.toggle('active',x===b));save();render()});
  bind('ssgoogle',()=>{let q=encodeURIComponent(`${$('subject')?.value||''} ${$('topic')?.value||''}`.trim());window.open('https://www.google.com/search?q='+q,'_blank','noopener')});
