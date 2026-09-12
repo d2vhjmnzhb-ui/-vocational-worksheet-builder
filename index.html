@@ -22,7 +22,7 @@
     @page{size:A4;margin:0}
     @media print{body{background:#fff}.appbar,.form-panel,.preview-head{display:none!important}.workspace{display:block;padding:0;margin:0;max-width:none}.paper-stage{padding:0;overflow:visible}.paper{box-shadow:none;width:210mm;min-height:297mm;margin:0;padding:14mm 15mm}.preview-wrap{overflow:visible}.foot{position:relative}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
   </style>
-  <link rel="stylesheet" href="./teacher-dashboard.css?v=20260912v29">
+  <link rel="stylesheet" href="./teacher-dashboard.css?v=20260912v30">
 </head>
 <body>
   <header class="appbar"><div class="brand"><div class="brandmark"></div><span>ระบบงานครูอาชีวศึกษา</span></div><div class="actions"><button class="btn btn-light" id="resetBtn">↻ <span class="label">ล้างข้อมูล</span></button><button class="btn btn-light" id="printBtn">⌁ <span class="label">พิมพ์</span></button><button class="btn btn-light" id="openPdfBtn">▣ <span class="label">เปิด PDF</span></button><button class="btn btn-primary" id="downloadPdfBtn">↓ <span class="label">บันทึก PDF</span></button></div></header>
@@ -43,24 +43,21 @@
       <div class="field"><label for="customTitle">ชื่อเอกสาร <span style="font-weight:400;color:#718392">(ไม่กรอกจะตั้งชื่อให้อัตโนมัติ)</span></label><input id="customTitle" placeholder="เช่น ใบงานหน่วยที่ 2 การวิเคราะห์วงจร"></div>
       <div class="field"><label for="type">รูปแบบคำถาม</label><select id="type"><option>ถาม–ตอบ</option><option>เติมคำ</option><option selected>ปรนัย 4 ตัวเลือก ก ข ค ง</option><option>คำนวณ</option><option value="วิเคราะห์" hidden>วิเคราะห์</option><option>ใบงานปฏิบัติ</option><option>แบบผสม</option><option>มายแมป</option><option>จับคู่ภาพกับชื่อหรือเนื้อหา</option></select></div>
       <div class="grid2"><div class="field"><label for="count">จำนวนข้อ <span style="font-weight:400;color:#718392">(สูงสุด 60)</span></label><input id="count" type="number" min="1" max="60" value="10"></div><div class="field"><label for="difficulty">ระดับความยาก</label><select id="difficulty"><option>ง่าย</option><option selected>ปานกลาง</option><option>ยาก</option></select></div></div>
-      <div class="research-box">
-        <div class="research-title"><b>1. ค้นหาและสะสมเนื้อหา</b><span class="ai-pill">เพิ่มได้หลายเรื่อง</span></div>
-        <div class="search-row"><input id="researchQuery" aria-label="คำค้น" placeholder="เช่น กฎของโอห์ม"><button class="mini-btn" id="researchBtn">ค้นหาเนื้อหา</button></div>
-        <div class="topic-basket" id="topicBasket"></div><div class="content-count" id="contentCount">ยังไม่มีเนื้อหาที่เลือก</div>
-        <p class="source-status" id="researchStatus">ค้นทีละหัวข้อแล้วเพิ่มสะสมได้ โดยข้อมูลเดิมจะไม่หาย</p>
-        <div class="source-list" id="sourceList"></div><div class="image-list" id="imageList"></div>
-        <details class="outside-source">
-          <summary>＋ เพิ่มเนื้อหาจากหนังสือหรือเว็บไซต์อื่น</summary>
-          <div class="field"><label for="manualSourceTitle">ชื่อเรื่อง / แหล่งข้อมูล</label><input id="manualSourceTitle" placeholder="เช่น หนังสือวงจรไฟฟ้ากระแสตรง บทที่ 2"></div>
-          <div class="field"><label for="manualSourceUrl">ลิงก์เว็บไซต์ (ถ้ามี)</label><input id="manualSourceUrl" type="url" placeholder="https://..."></div>
-          <div class="field"><label for="manualSourceText">เนื้อหาที่ต้องการใช้สร้างโจทย์</label><textarea id="manualSourceText" placeholder="วางเนื้อหาที่ตรวจสอบแล้วจากหนังสือ เอกสาร หรือเว็บไซต์"></textarea></div>
-          <div class="source-actions"><button type="button" class="mini-btn secondary" id="webSearchBtn">ค้นเว็บทั่วไป</button><button type="button" class="mini-btn" id="addManualSourceBtn">เพิ่มเนื้อหานี้</button></div>
-        </details>
-        <label class="upload-label">＋ เพิ่มภาพจากเครื่อง<input type="file" id="imageUpload" accept="image/*"></label>
-        <p class="build-note">กด “ดูส่วนที่ใช้สร้างโจทย์” ใต้แต่ละเนื้อหาเพื่อเช็กข้อความที่ระบบอ่านได้และรูปแบบคำถามที่ใช้ได้</p>
-        <button class="btn generate ai-generate" id="aiGenerateBtn">สร้างเอกสารจากเนื้อหาที่เลือก</button>
+      <div class="research-box external-source-box">
+        <div class="research-title"><b>แหล่งข้อมูลภายนอก</b><span class="ai-pill">อ้างอิงเพิ่มเติม</span></div>
+        <p class="source-status">ระบบจะไม่ตัดหรือดึงข้อความจากเว็บไซต์อัตโนมัติแล้ว หากต้องการค้นข้อมูลเพิ่มเติมให้เปิด Google แล้วนำสาระที่ตรวจสอบแล้วกลับมาใช้กับ AI หรือเพิ่มโจทย์เอง</p>
+        <div class="search-row"><input id="externalSearchQuery" aria-label="ค้นเว็บ" placeholder="คำค้น เช่น FutureLog Supplier"><button class="mini-btn secondary" id="externalGoogleBtn" type="button">เปิด Google</button></div>
       </div>
-      <button class="btn generate" id="generateBtn">สร้าง/อัปเดตจากเนื้อหาที่เลือก</button>
+      <div id="legacyResearchHidden" style="display:none!important">
+        <input id="researchQuery"><button id="researchBtn" type="button"></button>
+        <div id="topicBasket"></div><div id="contentCount"></div><p id="researchStatus"></p>
+        <div id="sourceList"></div><div id="imageList"></div>
+        <input id="manualSourceTitle"><input id="manualSourceUrl"><textarea id="manualSourceText"></textarea>
+        <button id="webSearchBtn" type="button"></button><button id="addManualSourceBtn" type="button"></button>
+        <input type="file" id="imageUpload" accept="image/*">
+        <button id="aiGenerateBtn" type="button"></button>
+      </div>
+      <button class="btn generate" id="generateBtn">สร้าง/อัปเดตใบงาน</button>
     </aside>
     <section class="preview-wrap">
       <div class="preview-head"><h2>ตัวอย่างเอกสาร A4</h2><div class="tabs"><button class="tab active" data-view="student">ใบงานนักเรียน</button><button class="tab" data-view="teacher">เฉลยสำหรับครู</button></div></div>
@@ -91,6 +88,7 @@
   </script>
   <script src="./html2pdf.bundle.min.js"></script>
   <script src="./research.js?v=20260911v28"></script>
+  <script>document.addEventListener("DOMContentLoaded",()=>{const b=document.getElementById("externalGoogleBtn"),q=document.getElementById("externalSearchQuery");if(b)b.onclick=()=>{const s=(q?.value||document.getElementById("topic")?.value||"").trim();window.open("https://www.google.com/search?q="+encodeURIComponent(s),"_blank","noopener")}});</script>
   <script src="./quality-v2.js?v=20260911v28"></script>
   <link rel="stylesheet" href="./studio.css?v=20260911v28">
   <style>
@@ -109,6 +107,6 @@
   <script src="./studio.js?v=20260911v28"></script>
   <script src="./manual.js?v=20260911v28"></script>
   <script src="./pdf-fix.js?v=20260911v28"></script>
-  <script src="./teacher-dashboard.js?v=20260912v29"></script>
+  <script src="./teacher-dashboard.js?v=20260912v30"></script>
 </body>
 </html>

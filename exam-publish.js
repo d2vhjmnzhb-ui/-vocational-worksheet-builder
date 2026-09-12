@@ -64,46 +64,11 @@ function isNoiseQuestion(q){
 }
 
 function readQuestions(){
-  const out=[];
-  document.querySelectorAll('#paper .exercise > li').forEach(li=>{
-    const q=getQuestionText(li);
-    if(!q || isNoiseQuestion(q))return;
-
-    const choices=[...li.querySelectorAll('.choices span')]
-      .map(x=>cleanChoice(txt(x))).filter(Boolean);
-
-    const answerEl=li.querySelector('.answer');
-    const rawAnswer=txt(answerEl);
-
-    if(choices.length===4){
-      const m=rawAnswer.match(/(?:เฉลย(?:\/แนวคำตอบ)?|คำตอบ)\s*[:：]?\s*([กขคง])(?:\s*[.)])?/i);
-      if(!m)return;
-      out.push({
-        type:'mcq',
-        q,
-        choices:{ก:choices[0],ข:choices[1],ค:choices[2],ง:choices[3]},
-        answer:m[1],
-        points:1
-      });
-      return;
-    }
-
-    const hasAnswerArea=!!li.querySelector('.answer-lines,.answer-inline,.answer');
-    const looksLikeAnswer=/^(?:แนวคำตอบ|คำตอบ|เฉลย(?:\/แนวคำตอบ)?)\s*[:：]?/i.test(rawAnswer);
-    const numberedOrQuestion=/[?？]$/.test(q) || /^\s*\d+\s*[.)]/.test(txt(li));
-
-    if(!hasAnswerArea && !numberedOrQuestion)return;
-    if(answerEl && rawAnswer && !looksLikeAnswer && !li.querySelector('.answer-lines,.answer-inline'))return;
-
-    const modelAnswer=looksLikeAnswer ? cleanAnswerText(rawAnswer) : '';
-    out.push({
-      type:'text',
-      q,
-      modelAnswer,
-      points:1
-    });
-  });
-  return out;
+  const bank=window.onlineExamBank?.questions?.()||[];
+  return bank.map(q=>q.type==='text'
+    ? {type:'text',q:String(q.q||''),modelAnswer:String(q.modelAnswer||''),points:Number(q.points||1)}
+    : {type:'mcq',q:String(q.q||''),choices:{...(q.choices||{})},answer:String(q.answer||''),points:Number(q.points||1)}
+  ).filter(q=>q.q.trim());
 }
 
 function jsonp(params,timeout=25000){
@@ -151,7 +116,7 @@ function openPublish(){
   const qs=readQuestions(), mcq=qs.filter(x=>x.type==='mcq').length, text=qs.length-mcq;
   const r=$('onlineExamResult');r.style.display='none';r.innerHTML='';
   $('onlineExamTitle').value=getMeta('customTitle')||`${getMeta('subject','ข้อสอบ')} - ${getMeta('topic')}`.replace(/\s+-\s*$/,'');
-  $('examDetected').textContent=`ตรวจพบทั้งหมด ${qs.length} ข้อ • ปรนัย ${mcq} ข้อ • ถาม–ตอบ ${text} ข้อ`;
+  $('examDetected').textContent=`คลังข้อสอบออนไลน์ ${qs.length} ข้อ • ปรนัย ${mcq} ข้อ • ถาม–ตอบ ${text} ข้อ`;
   if(!qs.length){r.style.display='block';r.textContent='ยังไม่พบคำถามในเอกสาร กรุณาสร้างข้อสอบก่อน';}
   pub.classList.add('open');
 }

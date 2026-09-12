@@ -215,8 +215,18 @@ function practiceExtras(){const p=$('paper');p.querySelectorAll('.practice-image
 function polish(useFacts){const p=$('paper');if(!p)return;p.querySelectorAll('.foot,.worksheet-image,.sources-print,.source-warning').forEach(x=>x.remove());[...p.querySelectorAll('.student-line span')].filter(x=>x.textContent.trim().startsWith('วันที่')).forEach(x=>x.remove());const crest=p.querySelector('.crest');if(crest)crest.innerHTML='<img src="./pic-logo.png" alt="ตราวิทยาลัยเทคนิคปากช่อง">';docKind();if(!window.worksheetStudio?.renderSpecial()){rebuild(useFacts);practiceExtras()}}
 let fromSources=false;if($('type').value==='วิเคราะห์')$('type').value='ปรนัย 4 ตัวเลือก ก ข ค ง';function render(){previousRender();polish(fromSources)}window.render=render;function requestedCapacity(){const requested=Math.max(1,Math.min(60,+$('count').value||1)),available=availableQuestionCount();return{requested,available,missing:Math.max(0,requested-available)}}function generateFromSelected(){
  try{
+   const manualCount=(window.worksheetManual?.items()||[]).length;
    const fs=facts();
-   if(!fs.length){alert('กรุณาค้นหา เลือก หรือวางเนื้อหาก่อนสร้างคำถาม');return}
+   if(!fs.length && manualCount){
+     fromSources=false;
+     render();
+     setResearchStatus('สร้างใบงานจากโจทย์ที่นำเข้าจาก AI หรือที่ครูเพิ่มแล้ว','success');
+     return;
+   }
+   if(!fs.length){
+     alert('กรุณานำเข้าข้อสอบจาก AI หรือเพิ่มโจทย์เองก่อนสร้างใบงาน');
+     return;
+   }
    const capacity=requestedCapacity();
    fromSources=true;
    render();

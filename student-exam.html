@@ -223,7 +223,7 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 
 <script>
 const EXAM_API_URL='https://script.google.com/macros/s/AKfycbxunyrg12A_Fv4fM-6GZZ4rVXz07-EN_rRGsTbBQZmsLcjFnLeLgNX3t-vyHH8d7Xfqgw/exec';
-const examId=new URLSearchParams(location.search).get('exam');
+const params=new URLSearchParams(location.search);const examId=params.get('exam');const PREVIEW_MODE=params.get('preview')==='1';
 let exam=null,attemptId='',endServerMs=0,startServerMs=0,totalDurationMs=0,timerId=null,started=false,submitting=false,leaveCount=0,lastLeaveAt=0,currentQuestion=0;
 const answers={};
 const startRequestId='SR_'+Date.now()+'_'+Math.random().toString(36).slice(2);
@@ -287,7 +287,27 @@ async function api(p,timeout=25000,retries=2){
   throw lastErr||new Error('เชื่อมต่อระบบไม่ได้ กรุณาลองใหม่');
 }
 
+
+function setupPreview(payload){
+  exam=payload||{};
+  exam.title=exam.title||'ตัวอย่างข้อสอบออนไลน์';
+  exam.duration=Number(exam.duration||50);
+  exam.maxLeave=Number(exam.maxLeave||3);
+  exam.questions=Array.isArray(exam.questions)&&exam.questions.length?exam.questions:[{type:'mcq',q:'ตัวอย่างคำถาม',choices:{ก:'ตัวเลือก ก',ข:'ตัวเลือก ข',ค:'ตัวเลือก ค',ง:'ตัวเลือก ง'}}];
+  started=true;startServerMs=Date.now();endServerMs=startServerMs+exam.duration*60000;totalDurationMs=endServerMs-startServerMs;
+  $('studentTopName').textContent='ตัวอย่างนักเรียน';$('studentTopId').textContent='0001';
+  $('startCard').classList.add('hidden');$('examArea').classList.remove('hidden');
+  currentQuestion=0;renderQuestion();stats();tick();
+  const submit=$('submitBtn');if(submit){submit.disabled=true;submit.textContent='ตัวอย่างปุ่มส่งข้อสอบ'}
+  const note=$('submitNote');if(note)note.textContent='โหมดตัวอย่างสำหรับครู • ไม่มีการบันทึกข้อมูล';
+}
+
 async function loadExam(){
+  if(PREVIEW_MODE){
+    let data=null;try{data=JSON.parse(localStorage.getItem('vocOnlineExamPreviewV30')||'null')}catch(_){}
+    setupPreview(data);
+    return;
+  }
   $('loadError').classList.add('hidden');
   $('retryBox')?.classList.add('hidden');
   $('examInfo').textContent='กำลังโหลดข้อมูลข้อสอบ...';
@@ -458,7 +478,7 @@ function tick(){
 }
 
 async function leave(reason){
-  if(!started||submitting)return;
+  if(PREVIEW_MODE||!started||submitting)return;
   const n=Date.now();
   if(n-lastLeaveAt<1500)return;
   lastLeaveAt=n;
@@ -575,9 +595,10 @@ $('reviewPrev').onclick=()=>{if(reviewIndex>0){reviewIndex--;renderReview();wind
 $('reviewNext').onclick=()=>{if(reviewIndex<reviewData.length-1){reviewIndex++;renderReview();window.scrollTo({top:$('reviewArea').offsetTop-10,behavior:'smooth'})}};
 
 window.addEventListener('beforeunload',e=>{
-  if(started&&!submitting){e.preventDefault();e.returnValue=''}
+  if(!PREVIEW_MODE&&started&&!submitting){e.preventDefault();e.returnValue=''}
 });
 
+window.addEventListener('message',e=>{if(PREVIEW_MODE&&e.origin===location.origin&&e.data?.type==='ONLINE_EXAM_PREVIEW')setupPreview(e.data.payload)});
 loadExam();
 </script>
 </body>
