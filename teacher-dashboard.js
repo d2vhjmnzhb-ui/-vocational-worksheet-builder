@@ -9,6 +9,7 @@ const svg=(name)=>{
   brand:'<path d="M6 3.5h9a2 2 0 0 1 2 2V20H6a2 2 0 0 1-2-2V5.5a2 2 0 0 1 2-2Z"/><path d="M8 8h5M8 12h5M8 16h3"/><path d="m15.5 14.5 4-4 2 2-4 4-2.5.5.5-2.5Z"/>',
   worksheet:'<path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 11h6M9 15h6"/>',
   exam:'<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M7 8h5M7 12h8"/>',
+  slides:'<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="m9 13 2-2 2 2 3-4 2 3"/>',
   results:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   reset:'<path d="M4 4v6h6"/><path d="M5.5 15a8 8 0 1 0 1.8-8.4L4 10"/>',
   print:'<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/>',
@@ -46,6 +47,7 @@ function buildShell(){
   <nav class="pro-nav" id="proTeacherNav" aria-label="เมนูหลัก">
     <button type="button" class="active" data-mode="worksheet">${svg('worksheet')}<span>สร้างใบงาน</span></button>
     <button type="button" data-mode="exam">${svg('exam')}<span>ข้อสอบออนไลน์</span></button>
+    <button type="button" data-mode="slides">${svg('slides')}<span>สร้างสไลด์</span></button>
     <button type="button" data-mode="results">${svg('results')}<span>ผลการสอบ</span></button>
   </nav>
   <div class="pro-context"><div><h1 id="proTitle">สร้างใบงาน</h1><p id="proSubtitle">นำเข้าโจทย์จาก AI เพิ่มโจทย์เอง และจัดเอกสาร A4</p></div><div class="pro-state">ระบบงานครู</div></div>`;
@@ -147,10 +149,12 @@ function switchExamTab(tab){
 function setMode(mode){
  document.body.dataset.proMode=mode;localStorage.setItem('teacherMode',mode);
  document.querySelectorAll('#proTeacherNav button').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
- const map={worksheet:['สร้างใบงาน','นำเข้าโจทย์จาก AI เพิ่มโจทย์เอง และจัดเอกสาร A4'],exam:['ข้อสอบออนไลน์','สร้างคลังข้อสอบแยกจากใบงาน ตรวจหน้าจอนักเรียน แล้วจึงเผยแพร่'],results:['ผลการสอบ','ตรวจคะแนน คำตอบข้อเขียน และผลการเข้าสอบจาก Google Sheet']};
+ const map={worksheet:['สร้างใบงาน','นำเข้าโจทย์จาก AI เพิ่มโจทย์เอง และจัดเอกสาร A4'],exam:['ข้อสอบออนไลน์','สร้างคลังข้อสอบแยกจากใบงาน ตรวจหน้าจอนักเรียน แล้วจึงเผยแพร่'],slides:['สร้างสไลด์','ค้นเนื้อหา วางจาก AI แก้ข้อความและรูป แล้วส่งออก PDF หรือ PowerPoint'],results:['ผลการสอบ','ตรวจคะแนน คำตอบข้อเขียน และผลการเข้าสอบจาก Google Sheet']};
  if($('proTitle'))$('proTitle').textContent=map[mode][0];if($('proSubtitle'))$('proSubtitle').textContent=map[mode][1];
  if(mode==='exam')setTimeout(updatePreview,100);
+ if(mode==='slides')setTimeout(()=>{if(typeof window.openSlideStudio==='function')window.openSlideStudio();},30);
 }
+window.setTeacherMode=setMode;
 
 function stripNumber(text){return String(text||'').replace(/^\s*(?:ข้อ\s*)?\d+\s*[.)-]\s*/,'').trim()}
 function parseBlock(block){
