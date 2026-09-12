@@ -3,221 +3,234 @@ const SS_ID = "13ocgfOgH-qLyfmQ1AWgd_oRpo3g0DuqnkNI-8RwoUpI";
 function doGet(e) {
   try {
     const p = (e && e.parameter) || {};
-    const action = p.action || "";
     let result;
-
-    if (!action) result = { ok: true, message: "Exam API ready" };
-    else if (action === "getExam") result = getExam(p);
-    else if (action === "startAttempt") result = startAttempt(p);
-    else if (action === "submitAttempt") {
-      const b = Object.assign({}, p, {
-        answers: p.answersJson ? JSON.parse(p.answersJson) : {},
-        leaveCount: Number(p.leaveCount || 0)
-      });
-      result = submitAttempt(b);
+    switch (p.action || "") {
+      case "": result = {ok:true,message:"Exam API ready"}; break;
+      case "getExam": result = getExam(p); break;
+      case "getTeacherExam": result = getTeacherExam(p); break;
+      case "listExams": result = listExams(); break;
+      case "getResults": result = getResults(p); break;
+      case "getAttemptDetail": result = getAttemptDetail(p); break;
+      case "saveGrades": result = saveGrades(p); break;
+      case "startAttempt": result = startAttempt(p); break;
+      case "submitAttempt":
+        result = submitAttempt(Object.assign({},p,{
+          answers:p.answersJson ? JSON.parse(p.answersJson) : {},
+          leaveCount:Number(p.leaveCount||0)
+        })); break;
+      case "logEvent": result = logEvent(p); break;
+      default: result = fail("UNKNOWN_ACTION"); break;
     }
-    else if (action === "logEvent") result = logEvent(p);
-    else result = { ok: false, error: "Unknown action" };
-
-    return output(result, p.callback);
-  } catch (err) {
-    const cb = e && e.parameter ? e.parameter.callback : "";
-    return output({ ok: false, error: String(err) }, cb);
+    return output(result,p.callback);
+  } catch(err) {
+    return output(fail("SERVER_ERROR"), e && e.parameter ? e.parameter.callback : "");
   }
 }
 
 function doPost(e) {
   try {
-    const b = JSON.parse((e && e.postData && e.postData.contents) || "{}");
-    if (b.action === "createExam") return output(createExam(b));
-    if (b.action === "getExam") return output(getExam(b));
-    if (b.action === "startAttempt") return output(startAttempt(b));
-    if (b.action === "submitAttempt") return output(submitAttempt(b));
-    if (b.action === "logEvent") return output(logEvent(b));
-    return output({ ok: false, error: "Unknown action" });
-  } catch (err) {
-    return output({ ok: false, error: String(err) });
-  }
+    const b=JSON.parse((e&&e.postData&&e.postData.contents)||"{}");
+    let result;
+    switch(b.action||"") {
+      case "createExam": result=createExam(b); break;
+      case "submitAttempt": result=submitAttempt(b); break;
+      default: result=fail("UNKNOWN_ACTION");
+    }
+    return output(result);
+  } catch(err) { return output(fail("SERVER_ERROR")); }
 }
 
-function output(obj, callback) {
-  const text = JSON.stringify(obj);
-  if (callback && /^[A-Za-z_$][0-9A-Za-z_$\.]*$/.test(callback)) {
-    return ContentService.createTextOutput(callback + "(" + text + ");")
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+function output(obj,callback) {
+  const text=JSON.stringify(obj);
+  if(callback && /^[A-Za-z_$][0-9A-Za-z_$\.]*$/.test(callback)) {
+    return ContentService.createTextOutput(callback+"("+text+");").setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
-  return ContentService.createTextOutput(text)
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(text).setMimeType(ContentService.MimeType.JSON);
 }
-
+function fail(code) { return {ok:false,errorCode:code,error:code}; }
+function bool(v,def) { if(v===undefined||v===null||v==="")return !!def; return v===true||String(v).toLowerCase()==="true"; }
 function getBook() { return SpreadsheetApp.openById(SS_ID); }
 
-function getSheet(name, headers) {
-  const ss = getBook();
-  let sh = ss.getSheetByName(name);
-  if (!sh) {
-    sh = ss.insertSheet(name);
-    sh.appendRow(headers);
-  } else {
-    // เพิ่มหัวคอลัมน์ใหม่โดยไม่ทำลายข้อมูลเดิม
-    const current = sh.getLastColumn();
-    if (current < headers.length) {
-      sh.getRange(1, current + 1, 1, headers.length - current)
-        .setValues([headers.slice(current)]);
-    }
+function getSheet(name,headers) {
+  const ss=getBook(); let sh=ss.getSheetByName(name);
+  if(!sh) { sh=ss.insertSheet(name); sh.appendRow(headers); }
+  else if(sh.getLastColumn()<headers.length) {
+    const start=sh.getLastColumn()+1;
+    sh.getRange(1,start,1,headers.length-start+1).setValues([headers.slice(start-1)]);
   }
   return sh;
 }
 
-function newId(prefix) {
-  return prefix + "_" + Utilities.getUuid().replace(/-/g, "").substring(0, 12).toUpperCase();
-}
+function newId(prefix) { return prefix+"_"+Utilities.getUuid().replace(/-/g,"").substring(0,12).toUpperCase(); }
+function qType(q) { return q&&q.type==="text" ? "text" : "mcq"; }
+function qPoints(q) { const n=Number(q&&q.points); return n>0?n:1; }
+function maxPoints(questions) { return (questions||[]).reduce((s,q)=>s+qPoints(q),0); }
+function hasText(questions) { return (questions||[]).some(q=>qType(q)==="text"); }
 
 function examsSheet() {
-  return getSheet("Exams", [
-    "examId","title","duration","maxLeave","showScore",
-    "oneAttempt","questionsJson","active","createdAt","allowReview"
-  ]);
+  return getSheet("Exams",["examId","title","duration","maxLeave","showScore","oneAttempt","questionsJson","active","createdAt","allowReview"]);
+}
+function attemptsSheet() {
+  return getSheet("Attempts",["attemptId","examId","studentId","studentName","status","startAt","endAt","score","total","leaves","reason","answersJson","requestId","manualScore","finalScore","gradingJson"]);
 }
 
+function cacheKey(id) { return "exam_"+id; }
+function clearExamCache(id) { try{CacheService.getScriptCache().remove(cacheKey(id));}catch(_){} }
+
 function createExam(b) {
-  if (!b.title || !Array.isArray(b.questions) || !b.questions.length)
-    return { ok:false, error:"ข้อมูลข้อสอบไม่ครบ" };
-
-  let examId = String(b.examId || "").trim();
-  if (!/^EX_[A-Z0-9]{10,20}$/.test(examId)) examId = newId("EX");
-
-  const sh = examsSheet();
-  const data = sh.getDataRange().getValues();
-  for (let i=1;i<data.length;i++) {
-    if (String(data[i][0]) === examId) return {ok:true,examId};
-  }
-
-  sh.appendRow([
-    examId, b.title, Number(b.duration || 50), Number(b.maxLeave || 3),
-    b.showScore !== false, b.oneAttempt !== false, JSON.stringify(b.questions),
-    true, new Date(), b.allowReview === true
-  ]);
-
+  if(!b.title || !Array.isArray(b.questions) || !b.questions.length) return fail("BAD_REQUEST");
+  let examId=String(b.examId||"").trim(); if(!/^EX_[A-Z0-9]{10,20}$/.test(examId)) examId=newId("EX");
+  const normalized=b.questions.map(q=>qType(q)==="text"
+    ? {type:"text",q:String(q.q||""),modelAnswer:String(q.modelAnswer||""),points:qPoints(q)}
+    : {type:"mcq",q:String(q.q||""),choices:q.choices||{},answer:String(q.answer||""),points:qPoints(q)}
+  );
+  const sh=examsSheet();
+  const lock=LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const data=sh.getDataRange().getValues();
+    for(let i=1;i<data.length;i++) if(String(data[i][0])===examId) return {ok:true,examId};
+    sh.appendRow([examId,b.title,Number(b.duration||50),Number(b.maxLeave||3),bool(b.showScore,true),bool(b.oneAttempt,true),JSON.stringify(normalized),true,new Date(),bool(b.allowReview,false)]);
+  } finally { lock.releaseLock(); }
+  clearExamCache(examId);
   return {ok:true,examId};
 }
 
 function findExam(examId) {
-  const sh = examsSheet();
-  const data = sh.getDataRange().getValues();
-  for (let i=1;i<data.length;i++) {
-    if (String(data[i][0]) === String(examId)) {
-      return {
-        examId:data[i][0],
-        title:data[i][1],
-        duration:Number(data[i][2]),
-        maxLeave:Number(data[i][3]),
-        showScore:String(data[i][4]).toLowerCase()==="true",
-        oneAttempt:String(data[i][5]).toLowerCase()==="true",
-        questions:JSON.parse(data[i][6] || "[]"),
-        active:String(data[i][7]).toLowerCase()!=="false",
-        allowReview:String(data[i][9]).toLowerCase()==="true"
-      };
-    }
+  if(!examId)return null;
+  const cache=CacheService.getScriptCache();
+  const cached=cache.get(cacheKey(examId));
+  if(cached) { try{return JSON.parse(cached)}catch(_){} }
+  const data=examsSheet().getDataRange().getValues();
+  for(let i=1;i<data.length;i++) if(String(data[i][0])===String(examId)) {
+    const exam={examId:data[i][0],title:data[i][1],duration:Number(data[i][2]),maxLeave:Number(data[i][3]),showScore:bool(data[i][4],true),oneAttempt:bool(data[i][5],true),questions:JSON.parse(data[i][6]||"[]"),active:String(data[i][7]).toLowerCase()!=="false",allowReview:bool(data[i][9],false)};
+    try{cache.put(cacheKey(examId),JSON.stringify(exam),300)}catch(_){}
+    return exam;
   }
   return null;
 }
 
+function publicQuestion(q) {
+  return qType(q)==="text"
+    ? {type:"text",q:q.q,points:qPoints(q)}
+    : {type:"mcq",q:q.q,choices:q.choices,points:qPoints(q)};
+}
 function getExam(b) {
-  const exam = findExam(b.examId);
-  if (!exam || !exam.active) return {ok:false,error:"ไม่พบข้อสอบ"};
-  return {
-    ok:true,
-    exam:{
-      examId:exam.examId,
-      title:exam.title,
-      duration:exam.duration,
-      maxLeave:exam.maxLeave,
-      allowReview:exam.allowReview,
-      questions:exam.questions.map(q=>({q:q.q,choices:q.choices}))
-    }
-  };
+  const exam=findExam(b.examId); if(!exam||!exam.active)return fail("INVALID_EXAM");
+  return {ok:true,exam:{examId:exam.examId,title:exam.title,duration:exam.duration,maxLeave:exam.maxLeave,allowReview:exam.allowReview,questions:exam.questions.map(publicQuestion)}};
+}
+function getTeacherExam(b) {
+  const exam=findExam(b.examId); if(!exam)return fail("INVALID_EXAM");
+  return {ok:true,exam:{examId:exam.examId,title:exam.title,maxPoints:maxPoints(exam.questions),questions:exam.questions}};
 }
 
-function attemptsSheet() {
-  return getSheet("Attempts", [
-    "attemptId","examId","studentId","studentName","status","startAt",
-    "endAt","score","total","leaves","reason","answersJson"
-  ]);
+function listExams() {
+  const ed=examsSheet().getDataRange().getValues(), ad=attemptsSheet().getDataRange().getValues(), counts={};
+  for(let i=1;i<ad.length;i++) counts[String(ad[i][1])]=(counts[String(ad[i][1])]||0)+1;
+  const exams=[];
+  for(let i=ed.length-1;i>=1;i--) exams.push({examId:String(ed[i][0]),title:String(ed[i][1]),createdAt:ed[i][8],count:counts[String(ed[i][0])]||0});
+  return {ok:true,exams:exams.slice(0,60)};
+}
+
+function attemptResponse(row,exam) {
+  const start=row[5] instanceof Date?row[5]:new Date(row[5]);
+  const end=new Date(start.getTime()+exam.duration*60000);
+  return {ok:true,attemptId:row[0],startMs:start.getTime(),endMs:end.getTime(),resumed:true};
 }
 
 function startAttempt(b) {
-  const exam = findExam(b.examId);
-  if (!exam || !exam.active) return {ok:false,error:"ไม่พบข้อสอบ"};
-  if (!b.studentId || !b.studentName) return {ok:false,error:"กรอกชื่อและรหัสนักเรียนให้ครบ"};
-
-  const sh = attemptsSheet();
-  const data = sh.getDataRange().getValues();
-  if (exam.oneAttempt) {
-    for (let i=1;i<data.length;i++) {
-      if (String(data[i][1])===String(b.examId) &&
-          String(data[i][2])===String(b.studentId)) {
-        return {ok:false,error:"รหัสนักเรียนนี้เข้าสอบชุดนี้แล้ว"};
-      }
+  const exam=findExam(b.examId); if(!exam||!exam.active)return fail("INVALID_EXAM");
+  if(!b.studentId||!b.studentName)return fail("MISSING_STUDENT");
+  const sh=attemptsSheet(), requestId=String(b.requestId||"");
+  const lock=LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const data=sh.getDataRange().getValues();
+    if(requestId) for(let i=1;i<data.length;i++) if(String(data[i][12]||"")===requestId&&String(data[i][1])===String(b.examId)&&String(data[i][2])===String(b.studentId)) return attemptResponse(data[i],exam);
+    if(exam.oneAttempt) for(let i=1;i<data.length;i++) if(String(data[i][1])===String(b.examId)&&String(data[i][2])===String(b.studentId)) {
+      if(String(data[i][4])==="SUBMITTED")return fail("ALREADY_SUBMITTED");
+      if(String(data[i][4])==="STARTED")return attemptResponse(data[i],exam);
     }
-  }
-
-  const attemptId = newId("AT");
-  const start = new Date();
-  const end = new Date(start.getTime() + exam.duration*60*1000);
-  sh.appendRow([attemptId,b.examId,b.studentId,b.studentName,"STARTED",start,"","","",0,"",""]);
-
-  return {ok:true,attemptId,startMs:start.getTime(),endMs:end.getTime()};
+    const attemptId=newId("AT"),start=new Date();
+    sh.appendRow([attemptId,b.examId,b.studentId,b.studentName,"STARTED",start,"","","",0,"","",requestId,0,0,"{}"]);
+    return {ok:true,attemptId,startMs:start.getTime(),endMs:start.getTime()+exam.duration*60000,resumed:false};
+  } finally { lock.releaseLock(); }
 }
 
 function findAttempt(attemptId) {
-  const sh = attemptsSheet();
-  const data = sh.getDataRange().getValues();
-  for (let i=1;i<data.length;i++) {
-    if (String(data[i][0])===String(attemptId))
-      return {sheet:sh,row:i+1,data:data[i]};
-  }
+  const sh=attemptsSheet(),data=sh.getDataRange().getValues();
+  for(let i=1;i<data.length;i++) if(String(data[i][0])===String(attemptId))return {sheet:sh,row:i+1,data:data[i]};
   return null;
 }
 
+function autoScore(exam,answers) {
+  let score=0;
+  exam.questions.forEach((q,i)=>{if(qType(q)==="mcq"&&String(answers[i]||"")===String(q.answer||""))score+=qPoints(q)});
+  return score;
+}
+function buildReview(exam,answers) {
+  return exam.questions.map((q,i)=>qType(q)==="text"
+    ? {type:"text",q:q.q,studentAnswer:String(answers[i]||""),modelAnswer:String(q.modelAnswer||""),points:qPoints(q)}
+    : {type:"mcq",q:q.q,choices:q.choices,studentAnswer:String(answers[i]||""),correctAnswer:String(q.answer||""),points:qPoints(q)}
+  );
+}
+
 function submitAttempt(b) {
-  const attempt = findAttempt(b.attemptId);
-  if (!attempt) return {ok:false,error:"ไม่พบข้อมูลการเข้าสอบ"};
-  if (String(attempt.data[4])==="SUBMITTED") return {ok:false,error:"ส่งข้อสอบแล้ว"};
-
-  const exam = findExam(b.examId);
-  if (!exam) return {ok:false,error:"ไม่พบข้อสอบ"};
-
-  const answers = b.answers || {};
-  let score = 0;
-  exam.questions.forEach((q,i)=>{
-    if (String(answers[i] || "") === String(q.answer || "")) score++;
-  });
-
-  attempt.sheet.getRange(attempt.row,5,1,8).setValues([[
-    "SUBMITTED", attempt.data[5], new Date(), score, exam.questions.length,
-    Number(b.leaveCount || 0), b.reason || "", JSON.stringify(answers)
-  ]]);
-
-  const result = {
-    ok:true, score, total:exam.questions.length,
-    showScore:exam.showScore, allowReview:exam.allowReview
-  };
-
-  if (exam.allowReview) {
-    result.review = exam.questions.map((q,i)=>({
-      q:q.q,
-      choices:q.choices,
-      studentAnswer:String(answers[i] || ""),
-      correctAnswer:String(q.answer || "")
-    }));
+  const a=findAttempt(b.attemptId); if(!a)return fail("ATTEMPT_NOT_FOUND");
+  const exam=findExam(b.examId); if(!exam)return fail("INVALID_EXAM");
+  if(String(a.data[4])==="SUBMITTED") {
+    let saved={};try{saved=JSON.parse(a.data[11]||"{}")}catch(_){}
+    const final=Number(a.data[14]||a.data[7]||0);
+    const r={ok:true,alreadySaved:true,score:Number(a.data[7]||0),manualScore:Number(a.data[13]||0),finalScore:final,total:Number(a.data[8]||maxPoints(exam.questions)),showScore:exam.showScore,pendingManual:hasText(exam.questions)&&String(a.data[15]||"{}")==="{}"};
+    if(exam.allowReview)r.review=buildReview(exam,saved); return r;
   }
+  const answers=b.answers||{},auto=autoScore(exam,answers),total=maxPoints(exam.questions);
+  const lock=LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const current=findAttempt(b.attemptId); if(!current)return fail("ATTEMPT_NOT_FOUND");
+    if(String(current.data[4])!=="SUBMITTED") {
+      current.sheet.getRange(current.row,5,1,12).setValues([["SUBMITTED",current.data[5],new Date(),auto,total,Number(b.leaveCount||0),b.reason||"",JSON.stringify(answers),current.data[12]||"",0,auto,"{}"]]);
+    }
+  } finally { lock.releaseLock(); }
+  const r={ok:true,score:auto,manualScore:0,finalScore:auto,total,showScore:exam.showScore,pendingManual:hasText(exam.questions)};
+  if(exam.allowReview)r.review=buildReview(exam,answers);
+  return r;
+}
 
-  return result;
+function getResults(b) {
+  const exam=findExam(b.examId); if(!exam)return fail("INVALID_EXAM");
+  const data=attemptsSheet().getDataRange().getValues(),rows=[];
+  for(let i=1;i<data.length;i++) if(String(data[i][1])===String(b.examId)) rows.push({
+    attemptId:String(data[i][0]),studentId:String(data[i][2]),studentName:String(data[i][3]),status:String(data[i][4]),
+    autoScore:Number(data[i][7]||0),manualScore:Number(data[i][13]||0),finalScore:Number(data[i][14]||data[i][7]||0),leaves:Number(data[i][9]||0)
+  });
+  return {ok:true,exam:{examId:exam.examId,title:exam.title,maxPoints:maxPoints(exam.questions)},rows};
+}
+
+function getAttemptDetail(b) {
+  const a=findAttempt(b.attemptId); if(!a)return fail("ATTEMPT_NOT_FOUND");
+  const exam=findExam(a.data[1]); if(!exam)return fail("INVALID_EXAM");
+  let answers={},grades={};try{answers=JSON.parse(a.data[11]||"{}")}catch(_){}try{grades=JSON.parse(a.data[15]||"{}")}catch(_){}
+  const qs=exam.questions.map((q,i)=>qType(q)==="text"
+    ? {type:"text",q:q.q,studentAnswer:String(answers[i]||""),modelAnswer:String(q.modelAnswer||""),points:qPoints(q),grade:grades[i]}
+    : {type:"mcq",q:q.q,studentAnswer:String(answers[i]||""),correctAnswer:String(q.answer||""),points:qPoints(q),correct:String(answers[i]||"")===String(q.answer||"")}
+  );
+  return {ok:true,attempt:{attemptId:String(a.data[0]),studentId:String(a.data[2]),studentName:String(a.data[3]),autoScore:Number(a.data[7]||0),manualScore:Number(a.data[13]||0),finalScore:Number(a.data[14]||a.data[7]||0),maxPoints:maxPoints(exam.questions),questions:qs}};
+}
+
+function saveGrades(b) {
+  const a=findAttempt(b.attemptId); if(!a)return fail("ATTEMPT_NOT_FOUND");
+  const exam=findExam(a.data[1]); if(!exam)return fail("INVALID_EXAM");
+  let input={};try{input=JSON.parse(b.gradesJson||"{}")}catch(_){}
+  const grades={};let manual=0;
+  exam.questions.forEach((q,i)=>{if(qType(q)==="text"){let g=Number(input[i]||0);if(!isFinite(g)||g<0)g=0;g=Math.min(g,qPoints(q));grades[i]=g;manual+=g;}});
+  const auto=Number(a.data[7]||0),final=auto+manual;
+  const lock=LockService.getScriptLock(); lock.waitLock(30000);
+  try{a.sheet.getRange(a.row,14,1,3).setValues([[manual,final,JSON.stringify(grades)]])}finally{lock.releaseLock()}
+  return {ok:true,manualScore:manual,finalScore:final,maxPoints:maxPoints(exam.questions)};
 }
 
 function logEvent(b) {
-  const sh = getSheet("Events", ["timestamp","examId","attemptId","event","leaveCount"]);
-  sh.appendRow([new Date(),b.examId||"",b.attemptId||"",b.event||"",Number(b.leaveCount||0)]);
+  const sh=getSheet("Events",["timestamp","examId","attemptId","event","leaveCount"]);
+  const lock=LockService.getScriptLock(); if(!lock.tryLock(5000))return {ok:true,skipped:true};
+  try{sh.appendRow([new Date(),b.examId||"",b.attemptId||"",b.event||"",Number(b.leaveCount||0)])}finally{lock.releaseLock()}
   return {ok:true};
 }
