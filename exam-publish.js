@@ -226,5 +226,10 @@ async function openAttempt(attemptId){
   }catch(e){$('resultDetail').textContent='โหลดคำตอบไม่ได้: '+e.message}
 }
 
+
+// Public hooks for the professional dashboard.
+window.openOnlineExamPublish = openPublish;
+window.openOnlineExamResults = openResults;
+
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',addButtons);else addButtons();
 })();

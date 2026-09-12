@@ -110,8 +110,8 @@ function buildShell(){
 
  document.querySelectorAll('#proTeacherNav button').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
  document.querySelectorAll('[data-exam-tab]').forEach(b=>b.onclick=()=>switchExamTab(b.dataset.examTab));
- $('proPublishBtn').onclick=()=>{const b=$('publishExamBtn');if(b)b.click();else alert('กำลังเตรียมเครื่องมือเผยแพร่ กรุณาลองอีกครั้ง')};
- $('proOpenResults').onclick=()=>{const b=$('examResultsBtn');if(b)b.click();else alert('กำลังเตรียมผลการสอบ กรุณาลองอีกครั้ง')};
+ $('proPublishBtn').onclick=()=>{if(typeof window.openOnlineExamPublish==='function')window.openOnlineExamPublish();else{const b=$('publishExamBtn');if(b)b.click();else alert('เครื่องมือเผยแพร่ยังโหลดไม่เสร็จ กรุณารีเฟรชหน้าเว็บ')}};
+ $('proOpenResults').onclick=()=>{if(typeof window.openOnlineExamResults==='function')window.openOnlineExamResults();else{const b=$('examResultsBtn');if(b)b.click();else alert('เครื่องมือผลการสอบยังโหลดไม่เสร็จ กรุณารีเฟรชหน้าเว็บ')}};
 
  bindOnlineStudio();
  bindQuickAdd();
