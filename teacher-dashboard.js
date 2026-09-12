@@ -80,6 +80,17 @@ function buildShell(){
    <article class="pro-card exam-list-card">
     <div class="pro-card-head"><div><div class="pro-kicker">QUESTION LIST</div><h2>คำถามที่จะเผยแพร่</h2></div><span class="pro-count" id="onlineBankCount">0 ข้อ</span></div>
     <div class="pro-summary"><div class="pro-metric"><small>ปรนัย</small><b id="onlineMcqCount">0</b></div><div class="pro-metric"><small>ถาม–ตอบ</small><b id="onlineTextCount">0</b></div></div>
+    <div class="pro-quick-add">
+      <div class="pro-quick-head"><b>＋ เพิ่มคำถามตรงนี้</b><span>ไม่ต้องกลับไปฝั่งซ้าย</span></div>
+      <select id="quickManualType" class="pro-input"><option value="mcq">ปรนัย ก ข ค ง</option><option value="text">ถาม–ตอบ</option></select>
+      <textarea id="quickManualQ" class="pro-textarea" placeholder="พิมพ์คำถาม"></textarea>
+      <div id="quickManualChoices">
+        <input class="pro-input" data-qchoice="ก" placeholder="ก. ตัวเลือก"><input class="pro-input" data-qchoice="ข" placeholder="ข. ตัวเลือก"><input class="pro-input" data-qchoice="ค" placeholder="ค. ตัวเลือก"><input class="pro-input" data-qchoice="ง" placeholder="ง. ตัวเลือก">
+        <select id="quickManualAnswer" class="pro-input"><option value="ก">เฉลย ก</option><option value="ข">เฉลย ข</option><option value="ค">เฉลย ค</option><option value="ง">เฉลย ง</option></select>
+      </div>
+      <div id="quickManualText" hidden><textarea id="quickManualModel" class="pro-textarea" placeholder="แนวคำตอบสำหรับครู (ใส่หรือไม่ใส่ก็ได้)"></textarea></div>
+      <button class="pro-btn primary pro-full" id="quickManualAdd">${svg('add')}<span>เพิ่มเข้ารายการคำถาม</span></button>
+    </div>
     <div id="onlineBankList" class="pro-list"></div>
     <div class="pro-actions-row"><button class="pro-btn secondary" id="onlineClearBank">${svg('trash')}<span>ล้างคลัง</span></button><button class="pro-btn primary" id="proPublishBtn">${svg('publish')}<span>ตั้งค่าและเผยแพร่</span></button></div>
    </article>
@@ -103,9 +114,30 @@ function buildShell(){
  $('proOpenResults').onclick=()=>{const b=$('examResultsBtn');if(b)b.click();else alert('กำลังเตรียมผลการสอบ กรุณาลองอีกครั้ง')};
 
  bindOnlineStudio();
+ bindQuickAdd();
  setMode(localStorage.getItem('teacherMode')||'worksheet');
  renderBank();
  updatePreview();
+}
+
+function bindQuickAdd(){
+ const type=$('quickManualType'),q=$('quickManualQ'),choices=$('quickManualChoices'),text=$('quickManualText');
+ if(!type||!q)return;
+ const sync=()=>{const isText=type.value==='text';choices.hidden=isText;text.hidden=!isText};
+ type.onchange=sync;sync();
+ $('quickManualAdd').onclick=()=>{
+   const question=q.value.trim();if(!question){alert('กรุณาพิมพ์คำถาม');return}
+   if(type.value==='text'){
+     bank.push({type:'text',q:question,modelAnswer:$('quickManualModel').value.trim(),points:1});
+     $('quickManualModel').value='';
+   }else{
+     const vals={};document.querySelectorAll('[data-qchoice]').forEach(el=>vals[el.dataset.qchoice]=el.value.trim());
+     if(['ก','ข','ค','ง'].some(k=>!vals[k])){alert('กรุณาใส่ตัวเลือก ก ข ค ง ให้ครบ');return}
+     bank.push({type:'mcq',q:question,choices:vals,answer:$('quickManualAnswer').value,points:1});
+     document.querySelectorAll('[data-qchoice]').forEach(el=>el.value='');
+   }
+   q.value='';saveBank();
+ };
 }
 
 function switchExamTab(tab){
