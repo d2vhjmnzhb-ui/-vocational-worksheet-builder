@@ -73,6 +73,9 @@ async function open(){
  $('slideStudio').classList.add('open');render();refreshStorageInfo();
 }
 function close(){save();$('slideStudio').classList.remove('open');if(window.setTeacherMode)setTimeout(()=>window.setTeacherMode('worksheet'),10)}
+// Public hooks used by the main teacher dashboard.
+window.openSlideStudio=open;
+window.closeSlideStudio=close;
 function add(){save();slides.splice(cur+1,0,{t:'',k:'',b:'',type:'visual',...defaults()});cur++;scheduleSave();render()}
 function del(){if(slides.length<=1)return;slides.splice(cur,1);cur=Math.max(0,cur-1);render()}
 function duplicate(){save();slides.splice(cur+1,0,JSON.parse(JSON.stringify(slides[cur])));cur++;render()}
@@ -149,5 +152,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  bind('ssgoogle',()=>{let q=encodeURIComponent(`${$('subject')?.value||''} ${$('topic')?.value||''}`.trim());window.open('https://www.google.com/search?q='+q,'_blank','noopener')});
  bind('ssai',()=>{let sub=$('subject')?.value||'รายวิชาอาชีวศึกษา',top=$('topic')?.value||'หัวข้อบทเรียน',lvl=$('level')?.value||'อาชีวศึกษา';let prompt=`สร้างเนื้อหาสไลด์การสอน วิชา ${sub} เรื่อง ${top} ระดับ ${lvl} จำนวน 10 สไลด์ ภาษาไทยกระชับ ถูกต้อง เรียงจากพื้นฐานไปประยุกต์ แต่ละสไลด์ให้มีหัวข้อและเนื้อหา 2-4 ประเด็น`;navigator.clipboard?.writeText(prompt).catch(()=>{});window.open('https://chatgpt.com/','_blank','noopener')});
  bind('sssearch',wikiSearch);bind('ssusepaste',usePasted);bind('ssbuildcontent',buildFromResearch);renderResearch();
+ // If Slides was the last selected teacher mode, open the editor after all controls exist.
+ if(localStorage.getItem('teacherMode')==='slides') setTimeout(()=>open().catch(()=>{}),60);
 });
 })();
