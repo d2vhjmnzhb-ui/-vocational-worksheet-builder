@@ -56,3 +56,48 @@
 .ss-present{position:fixed;inset:0;z-index:99999;background:#05090d;display:grid;place-items:center;overflow:hidden}.ss-present-stage{width:100vw;height:100vh;display:grid;place-items:center;cursor:pointer}.ssp-frame{width:min(100vw,177.777vh);height:min(56.25vw,100vh);position:relative;overflow:hidden;background:#fff}.ssp-frame .slide{width:100%;height:100%;border-radius:0!important;box-shadow:none!important}.ss-present-top{position:fixed;top:14px;right:14px;display:flex;gap:8px;align-items:center;z-index:5;background:#07131ecc;color:#fff;padding:6px 8px;border-radius:12px;backdrop-filter:blur(8px)}.ss-present-top button{border:1px solid #ffffff30;background:#ffffff15;color:#fff;border-radius:9px;padding:7px 11px}.ss-present-nav{position:fixed;top:45%;z-index:5;width:48px;height:68px;border:0;border-radius:15px;background:#07131e99;color:#fff;font-size:42px;line-height:1}.ss-present-nav.prev{left:14px}.ss-present-nav.next{right:14px}
 .ss-modal{position:fixed;inset:0;z-index:100000;background:#061522b8;display:grid;place-items:center;padding:20px;backdrop-filter:blur(5px)}.ss-modal-card{width:min(760px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:20px;box-shadow:0 30px 90px #0006;padding:20px}.ss-modal-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-bottom:1px solid #e4edf2;padding-bottom:12px;margin-bottom:14px}.ss-modal-head b{display:block;font-size:1.15rem;color:#143d56}.ss-modal-head span{display:block;font-size:.8rem;color:#647b89;margin-top:3px}.ss-modal-head button{border:0;background:#eef4f7;border-radius:50%;width:34px;height:34px;font-size:22px;color:#506572}.ss-lesson-grid{display:grid;grid-template-columns:1.4fr .7fr 1.3fr;gap:10px}.ss-lesson-grid label{font-size:.78rem;font-weight:700;color:#405c6c}.ss-lesson-grid select,.ss-lesson-grid input{width:100%;margin-top:5px;border:1px solid #cbdbe5;border-radius:10px;padding:9px;background:#fbfdff}.ss-lesson-select-head{display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px}.ss-lesson-select-head button{border:0;background:#eaf5fb;color:#0c668f;border-radius:8px;padding:6px 9px;margin-left:4px}.ss-lesson-slides{display:grid;gap:7px;max-height:330px;overflow:auto;padding-right:3px}.ss-lesson-slides label{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;border:1px solid #dbe7ee;border-radius:11px;padding:9px;background:#fff}.ss-lesson-slides input{margin-top:3px;width:18px;height:18px}.ss-lesson-slides b{display:block;color:#173e55}.ss-lesson-slides small{display:block;color:#718592;margin-top:3px;line-height:1.35}.ss-lesson-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.ss-lesson-note{font-size:.76rem;color:#667c89;background:#f5f9fb;border-radius:10px;padding:9px;margin:10px 0 0}
 @media(max-width:900px){.ss-lesson-grid{grid-template-columns:1fr}.sstools .ssbtn{padding:7px 9px;font-size:.75rem}.ss-present-nav{display:none}.ss-modal{padding:8px}.ss-modal-card{padding:14px}.ss-lesson-actions{display:grid;grid-template-columns:1fr}.ss-lesson-actions .ssbtn{justify-content:center}}
+
+/* ===== V42 RESPONSIVE TABLET / PORTRAIT / LANDSCAPE ===== */
+/* Header must never wrap underneath the fixed bar. Horizontal scrolling is intentional on tablets. */
+#slideStudio.open{grid-template-rows:auto minmax(0,1fr)}
+.ssbar{height:auto!important;min-height:68px;box-sizing:border-box;padding:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) 8px max(10px,env(safe-area-inset-left));gap:10px;overflow:hidden}
+.ssbrand{flex:0 0 auto;min-width:235px!important}.ssbrand img{width:44px!important;height:44px!important}.ssbrand b{font-size:17px!important;white-space:nowrap}.ssbrand span{font-size:10px!important;white-space:nowrap}
+.sstools{margin-left:auto;display:flex!important;flex-wrap:nowrap!important;gap:6px;min-width:0;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:2px 2px 4px}
+.sstools::-webkit-scrollbar{display:none}.ssbtn{flex:0 0 auto;padding:8px 10px!important;font-size:12px;border-radius:9px!important}
+.ssbody{grid-template-columns:150px minmax(0,1fr) 300px;min-height:0;overflow:hidden}.ssleft,.sscenter,.ssright{min-width:0;box-sizing:border-box}.sscenter{padding:10px 12px 18px}.sscanvas{width:100%!important;max-width:1120px}.sseditbar,.sseditpanel{width:100%!important;max-width:1120px}.ss-tabs{grid-template-columns:repeat(4,minmax(0,1fr))!important}.ss-tabs button{font-size:11px;min-width:0}
+/* Focus mode: maximize the slide without losing the editor beneath it. */
+#slideStudio.ss-focus .ssbody{grid-template-columns:minmax(0,1fr)}
+#slideStudio.ss-focus .ssleft,#slideStudio.ss-focus .ssright{display:none!important}
+#slideStudio.ss-focus .sscenter{padding-inline:max(12px,3vw)}
+#slideStudio.ss-focus .sscanvas,#slideStudio.ss-focus .sseditbar,#slideStudio.ss-focus .sseditpanel{max-width:1280px}
+
+/* iPad / tablet landscape: keep 3 panels, but give the canvas most of the screen. */
+@media (orientation:landscape) and (max-width:1366px){
+  .ssbar{min-height:60px}.ssbrand{min-width:205px!important}.ssbrand img{width:40px!important;height:40px!important}.ssbrand b{font-size:15px!important}.ssbrand span{display:none}
+  .ssbody{grid-template-columns:112px minmax(0,1fr) 268px!important}
+  .ssleft{padding:8px}.ssleft-title{font-size:11px}.ssthumb{display:block!important;padding:5px}.ssthumb .mini{width:100%;aspect-ratio:16/9}.ssthumb>div:last-child{margin-top:4px}.ssthumb b{font-size:9px}.ssthumb span{font-size:8px}
+  .ssright{padding:8px}.ss-tabs{gap:3px}.ss-tabs button{padding:7px 2px;font-size:10px}.sstabpane h3{font-size:14px}.ssaction{padding:8px 9px;font-size:11px}.sscontrol{margin:9px 0}.sscontrol label{font-size:10px}
+  .sscenter{padding:8px 10px 14px}.sseditbar{margin-bottom:7px}.sseditbar button{padding:6px 7px;font-size:10px}
+  .sseditpanel{gap:7px!important;padding:9px!important}.sseditpanel label{font-size:9px}.sseditpanel input,.sseditpanel textarea,.sseditpanel select{padding:6px;font-size:11px}.sseditpanel textarea{min-height:52px}
+}
+
+/* Tablet portrait: canvas first, then horizontal slide strip, then tools. No tiny 3-column editor. */
+@media (orientation:portrait) and (max-width:1180px){
+  #slideStudio.open{overflow:hidden}
+  .ssbar{min-height:62px;align-items:center}.ssbrand{min-width:190px!important}.ssbrand img{width:40px!important;height:40px!important}.ssbrand b{font-size:14px!important}.ssbrand span{display:none}
+  .ssbody{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-areas:"center" "left" "right";align-content:start;overflow:auto!important;-webkit-overflow-scrolling:touch;background:#eef5fb}
+  .sscenter{grid-area:center;overflow:visible!important;padding:10px 12px 12px;align-items:stretch}.sscanvas,.sseditbar,.sseditpanel{max-width:none!important;width:100%!important}.sscanvas{border-radius:10px;box-shadow:0 10px 28px #1a3d5a24}
+  .ssleft{grid-area:left;overflow:visible!important;border-right:0;border-top:1px solid #d8e6f0;border-bottom:1px solid #d8e6f0;padding:9px 12px;background:#f7fbfe}.ssleft-title{margin:0 0 7px}.ssleft #ssthumbs{display:flex;gap:8px;overflow-x:auto;padding:2px 1px 7px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}.ssthumb-wrap{flex:0 0 132px;margin:0;scroll-snap-align:start}.ssthumb{display:block!important;height:100%;margin:0!important;padding:5px}.ssthumb .mini{width:100%;aspect-ratio:16/9}.ssthumb>div:last-child{margin-top:4px}.ssthumb b{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ssthumb span{font-size:8px}.ss-thumb-move{display:flex!important;right:3px;bottom:3px}.ss-thumb-move button{width:22px;height:20px;font-size:10px}
+  .ssright{grid-area:right;position:static!important;transform:none!important;width:auto!important;overflow:visible!important;border-left:0;padding:10px 12px 26px;box-shadow:none!important;background:#fff}.ss-tabs{position:sticky!important;top:0;z-index:15;padding:6px 0;background:#fff}.sstabpane{max-width:none}.sssourceBtns{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.ssaction{text-align:center;font-size:11px}.ssnote{font-size:10px}
+  .sseditpanel{grid-template-columns:1fr 1fr!important;gap:8px!important}.sseditpanel>div:nth-child(2){grid-column:1/-1}.ss-live-note{grid-column:1/-1!important}.sseditbar{overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px}.sseditbar>span,.ss-save-state{flex:0 0 auto}.sseditbar button{flex:0 0 auto;white-space:nowrap}
+  #slideStudio.ss-focus .ssleft,#slideStudio.ss-focus .ssright{display:none!important}
+}
+
+/* Phones / narrow split-screen: keep the same portrait flow, simplify controls. */
+@media (max-width:700px){
+  .ssbar{display:grid!important;grid-template-columns:1fr;gap:4px;padding:6px 8px}.ssbrand{min-width:0!important}.ssbrand img{width:34px!important;height:34px!important}.ssbrand b{font-size:13px!important}.sstools{width:100%;margin:0}.ssbtn{font-size:10px;padding:7px 8px!important}
+  .sscenter{padding:7px}.sseditpanel{grid-template-columns:1fr!important}.sseditpanel>div{grid-column:1!important}.ssleft{padding-inline:7px}.ssthumb-wrap{flex-basis:116px}.ssright{padding:8px}.sssourceBtns{grid-template-columns:1fr}.ss-tabs button{font-size:9px;padding:7px 1px}.slide h1{font-size:7.6vw}.slide h2{font-size:6vw}.slide p,.slide li{font-size:2.65vw}
+}
+
+/* Better touch targets and orientation changes. */
+@media (pointer:coarse){.ssbtn,.ssaction,.sssmall,.ss-tabs button{min-height:38px}.sscontrol input[type=range]{height:30px}.sseditpanel input,.sseditpanel select{min-height:40px}}
