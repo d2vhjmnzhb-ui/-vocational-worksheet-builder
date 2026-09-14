@@ -163,6 +163,7 @@ $('pubGo').onclick=async()=>{
     });
     const finalExamId=d?.exam?.examId||d?.examId||examId;
     const u=new URL(STUDENT_EXAM_URL,location.href);
+    u.searchParams.set('v','49');
     u.searchParams.set('exam',finalExamId);
     if($('onlineExamGuard').value==='guard'){
       u.searchParams.set('guard','1');
@@ -208,14 +209,24 @@ async function openResults(){
 }
 
 let resultLiveTimer=null,resultLiveBusy=false,lastResultSig='';
+function riskLabel(code){
+  const m={page_hidden:'ออกจากหน้าข้อสอบ',hidden_5s:'ออกจากหน้าข้อสอบ',split_screen_confirmed:'แบ่งหน้าจอ/หน้าต่างหด'};
+  return m[String(code||'')]||String(code||'');
+}
+function riskTime(v){
+  if(!v)return '';
+  const d=new Date(v);if(isNaN(d))return '';
+  return d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
 function renderResultRows(d){
-  const sig=JSON.stringify(d.rows.map(r=>[r.attemptId,r.status,r.autoScore,r.manualScore,r.finalScore,r.leaves]));
+  const sig=JSON.stringify(d.rows.map(r=>[r.attemptId,r.status,r.autoScore,r.manualScore,r.finalScore,r.leaves,r.lastRiskEvent,r.lastRiskAt]));
   if(sig===lastResultSig)return;
   lastResultSig=sig;
   $('resultBody').innerHTML=d.rows.map(r=>`<tr>
     <td>${esc(r.studentId)}</td><td>${esc(r.studentName)}</td>
     <td><span class="${r.status==='SUBMITTED'?'badge-status':'badge-status badge-wait'}">${r.status==='SUBMITTED'?'ส่งแล้ว':'กำลังทำ'}</span></td>
-    <td>${r.autoScore}</td><td>${r.manualScore}</td><td><b>${r.finalScore}</b> / ${d.exam.maxPoints}</td><td>${r.leaves}</td>
+    <td>${r.autoScore}</td><td>${r.manualScore}</td><td><b>${r.finalScore}</b> / ${d.exam.maxPoints}</td>
+    <td><b>${r.leaves}</b>${r.lastRiskEvent?`<div style="margin-top:4px;color:#b42318;font-size:.78rem;font-weight:800">⚠ ${esc(riskLabel(r.lastRiskEvent))}${riskTime(r.lastRiskAt)?` • ${esc(riskTime(r.lastRiskAt))}`:''}</div>`:''}</td>
     <td><button class="exam-mini" data-attempt="${esc(r.attemptId)}">ดูคำตอบ/ตรวจ</button></td>
   </tr>`).join('');
   document.querySelectorAll('[data-attempt]').forEach(b=>b.onclick=()=>openAttempt(b.dataset.attempt));

@@ -117,6 +117,7 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 .pendingScore{margin-top:10px;background:#fff8e7;border:1px solid #ffe09a;color:#805600;border-radius:13px;padding:11px;font-weight:900}
 
 .proctorBanner{display:none;margin:10px 0;padding:10px 12px;border-radius:12px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-weight:800;font-size:.9rem}.proctorBanner.show{display:flex;gap:8px;align-items:center}.riskFlash{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:99999;background:#991b1b;color:#fff;padding:11px 16px;border-radius:999px;box-shadow:0 10px 35px #0004;font-weight:800;max-width:92vw;text-align:center}.proctorLock{user-select:none;-webkit-user-select:none}
+.guardOverlay{position:fixed;inset:0;z-index:100000;background:rgba(9,20,35,.82);display:none;align-items:center;justify-content:center;padding:20px}.guardOverlay.show{display:flex}.guardCard{width:min(520px,94vw);background:#fff;border-radius:22px;padding:24px;box-shadow:0 28px 80px #0006;text-align:center;color:#16324f}.guardIcon{font-size:44px}.guardTitle{font-size:1.35rem;font-weight:900;margin:8px 0}.guardMsg{font-weight:800;line-height:1.5;color:#9a3412}.guardCount{font-size:2.25rem;font-weight:1000;color:#dc2626;margin:10px 0}.guardSmall{font-size:.86rem;color:#64748b;line-height:1.45}.guardBtn{margin-top:14px;border:0;border-radius:14px;padding:12px 18px;background:#1d4ed8;color:#fff;font-weight:900;font-size:1rem;width:100%}
 </style>
 </head>
 <body>
@@ -148,7 +149,7 @@ body{padding-bottom:env(safe-area-inset-bottom)}
   </section>
 
   <section id="examArea" class="hidden examShell">
-  <div id="proctorBanner" class="proctorBanner">🛡️ โหมดคุมสอบเปิดอยู่ • ระบบจะบันทึกการออกจากหน้า การสลับโฟกัส และการเปลี่ยนขนาดหน้าต่างผิดปกติ</div>
+  <div id="proctorBanner" class="proctorBanner">🛡️ โหมดคุมสอบเปิดอยู่ • ระบบจะนับการออกจากหน้าทันที และตรวจการแบ่งหน้าจอเมื่อหน้าต่างหดค้าง 4 วินาที</div>
     <div class="studentTop">
       <div class="infoChip">
         <div class="infoLabel">ผู้เข้าสอบ</div>
@@ -223,6 +224,16 @@ body{padding-bottom:env(safe-area-inset-bottom)}
     </div>
   </section>
 </main>
+<div id="guardOverlay" class="guardOverlay" role="dialog" aria-modal="true">
+  <div class="guardCard">
+    <div class="guardIcon">⚠️</div>
+    <div class="guardTitle">คำเตือนก่อนส่งข้อสอบอัตโนมัติ</div>
+    <div class="guardMsg" id="guardMsg">ตรวจพบเหตุการณ์เสี่ยงครบจำนวนที่กำหนด</div>
+    <div class="guardCount" id="guardCount">10</div>
+    <div class="guardSmall" id="guardSmall">ระบบจะนับถอยหลังเฉพาะตอนที่นักเรียนมองเห็นหน้าจอนี้ และจะไม่ส่งข้อสอบขณะหน้าเว็บถูกซ่อน</div>
+    <button id="guardAckBtn" class="guardBtn" type="button">รับทราบ</button>
+  </div>
+</div>
 
 <script>
 const EXAM_API_URL='https://script.google.com/macros/s/AKfycbxunyrg12A_Fv4fM-6GZZ4rVXz07-EN_rRGsTbBQZmsLcjFnLeLgNX3t-vyHH8d7Xfqgw/exec';
@@ -235,7 +246,8 @@ const PROCTOR={
   split:params.get('split')==='1',
   riskAction:params.get('risk')==='submit'?'submit':'warn'
 };
-let sourceQuestions=null,proctorBaseline=null,resizeTimer=null,orientationGraceUntil=0,hiddenRiskTimer=null,splitCandidateSince=0;
+let sourceQuestions=null,proctorBaseline=null,resizeTimer=null,orientationGraceUntil=0,hiddenRiskTimer=null,splitCandidateSince=0,splitHoldTimer=null;
+let pendingAutoSubmit=false,guardCountdownTimer=null,guardCountdownStarted=false;
 const riskLast={};
 let exam=null,attemptId='',endServerMs=0,startServerMs=0,totalDurationMs=0,timerId=null,started=false,submitting=false,leaveCount=0,lastLeaveAt=0,currentQuestion=0;
 const answers={};
@@ -322,11 +334,38 @@ function flashRisk(msg){
 }
 async function registerRisk(reason,label){
   if(PREVIEW_MODE||!started||submitting)return;
-  const now=Date.now();if(now-(riskLast[reason]||0)<2500)return;riskLast[reason]=now;
+  const now=Date.now();if(now-(riskLast[reason]||0)<5000)return;riskLast[reason]=now;
   leaveCount++;stats();
   api({action:'logEvent',examId,attemptId,event:reason,leaveCount}).catch(()=>{});
   flashRisk(`ตรวจพบ: ${label} • ครั้งที่ ${leaveCount}/${exam.maxLeave}`);
-  if(PROCTOR.enabled && PROCTOR.riskAction==='submit' && leaveCount>=exam.maxLeave){await submitExam(true,'พฤติกรรมเสี่ยงครบจำนวนที่กำหนด');}
+  if(PROCTOR.enabled && PROCTOR.riskAction==='submit' && leaveCount>=exam.maxLeave){
+    pendingAutoSubmit=true;
+    if(!document.hidden)showGuardFinalWarning(label);
+  }
+}
+function hideGuardWarning(){
+  clearInterval(guardCountdownTimer);guardCountdownTimer=null;guardCountdownStarted=false;
+  $('guardOverlay')?.classList.remove('show');
+}
+function showGuardFinalWarning(label){
+  if(!pendingAutoSubmit||submitting||document.hidden||guardCountdownStarted)return;
+  guardCountdownStarted=true;
+  const ov=$('guardOverlay'),count=$('guardCount'),msg=$('guardMsg'),ack=$('guardAckBtn');
+  if(!ov)return;
+  let sec=10;
+  msg.textContent=`ตรวจพบ ${label||'เหตุการณ์เสี่ยง'} ครบ ${leaveCount}/${exam.maxLeave} ครั้ง`;
+  count.textContent=sec;
+  if(ack){ack.textContent='รับทราบ — ระบบจะส่งเมื่อหมดเวลา';ack.disabled=false;}
+  ov.classList.add('show');
+  guardCountdownTimer=setInterval(async()=>{
+    if(document.hidden)return;
+    sec--;count.textContent=Math.max(0,sec);
+    if(sec<=0){
+      clearInterval(guardCountdownTimer);guardCountdownTimer=null;
+      pendingAutoSubmit=false;
+      await submitExam(true,'พฤติกรรมเสี่ยงครบจำนวนที่กำหนด');
+    }
+  },1000);
 }
 function requestExamFullscreen(){
   if(!PROCTOR.enabled||!PROCTOR.fullscreen)return;
@@ -338,26 +377,41 @@ function startProctorWatch(){
   $('proctorBanner')?.classList.add('show');document.body.classList.add('proctorLock');
   setTimeout(captureProctorBaseline,700);
 }
-function checkSplitResize(){
-  if(!PROCTOR.enabled||!PROCTOR.split||!started||!proctorBaseline||Date.now()<orientationGraceUntil)return;
+function isSplitLikeNow(){
+  if(!proctorBaseline)return false;
   const active=document.activeElement;const typing=active&&/INPUT|TEXTAREA|SELECT/.test(active.tagName);
   const w=window.innerWidth,h=window.innerHeight,b=proctorBaseline;
-  // V46: ต้องหดมากและค้างจริง ไม่ใช้การเลื่อนหน้า/เปิดคีย์บอร์ดเป็นเหตุการณ์เสี่ยง
-  const widthShrunk=w < b.w*.62;
-  const heightShrunk=!typing && h < b.h*.45;
-  if(widthShrunk||heightShrunk){
-    if(!splitCandidateSince)splitCandidateSince=Date.now();
-    if(Date.now()-splitCandidateSince>=4000){splitCandidateSince=0;registerRisk('split_screen_confirmed','ตรวจพบหน้าจอถูกแบ่ง/พื้นที่ข้อสอบหดต่อเนื่อง');}
-  }else splitCandidateSince=0;
+  // V49: จับเฉพาะการหดหน้าต่างแรงแบบ Split Screen; การเลื่อนหน้า/คีย์บอร์ดไม่ควรเข้าเงื่อนไข
+  const widthShrunk=w < b.w*.70;
+  const heightShrunk=!typing && h < b.h*.50;
+  return widthShrunk||heightShrunk;
 }
-window.addEventListener('resize',()=>{if(!PROCTOR.enabled||!PROCTOR.split)return;clearTimeout(resizeTimer);resizeTimer=setTimeout(checkSplitResize,1200)});
-window.addEventListener('orientationchange',()=>{orientationGraceUntil=Date.now()+4000;splitCandidateSince=0;setTimeout(captureProctorBaseline,3000)});
+function checkSplitResize(){
+  if(!PROCTOR.enabled||!PROCTOR.split||!started||!proctorBaseline||Date.now()<orientationGraceUntil)return;
+  if(isSplitLikeNow()){
+    if(!splitCandidateSince)splitCandidateSince=Date.now();
+    clearTimeout(splitHoldTimer);
+    // ต้องหดค้าง 4 วินาทีจริง จึงถือว่าเสี่ยง ไม่ใช่แค่ resize ชั่วคราว
+    const remain=Math.max(0,4000-(Date.now()-splitCandidateSince));
+    splitHoldTimer=setTimeout(()=>{
+      if(Date.now()>=orientationGraceUntil && isSplitLikeNow()){
+        splitCandidateSince=0;
+        registerRisk('split_screen_confirmed','ตรวจพบการแบ่งหน้าจอ/พื้นที่ข้อสอบหดค้างเกิน 4 วินาที');
+      }
+    },remain+60);
+  }else{
+    splitCandidateSince=0;clearTimeout(splitHoldTimer);splitHoldTimer=null;
+  }
+}
+window.addEventListener('resize',()=>{if(!PROCTOR.enabled||!PROCTOR.split)return;clearTimeout(resizeTimer);resizeTimer=setTimeout(checkSplitResize,250)});
+window.addEventListener('orientationchange',()=>{orientationGraceUntil=Date.now()+4000;splitCandidateSince=0;clearTimeout(splitHoldTimer);setTimeout(captureProctorBaseline,3000)});
 // blur และการออก fullscreen บนมือถือเกิดจาก UI ระบบได้ง่าย จึงไม่ตัดเป็นความเสี่ยงใน V46
 window.addEventListener('blur',()=>{});
 document.addEventListener('fullscreenchange',()=>{});
 document.addEventListener('webkitfullscreenchange',()=>{});
 document.addEventListener('copy',e=>{if(PROCTOR.enabled&&started){e.preventDefault();flashRisk('โหมดคุมสอบไม่อนุญาตให้คัดลอกข้อความ')}});
 document.addEventListener('contextmenu',e=>{if(PROCTOR.enabled&&started)e.preventDefault()});
+$('guardAckBtn')?.addEventListener('click',()=>{if(pendingAutoSubmit){$('guardAckBtn').disabled=true;$('guardAckBtn').textContent='รับทราบแล้ว • กรุณารอ';}});
 
 function setupPreview(payload){
   exam=payload||{};
@@ -562,12 +616,17 @@ async function leave(reason){
   else alert(`ตรวจพบการออกจากหน้าสอบ ครั้งที่ ${leaveCount}/${exam.maxLeave}`);
 }
 
-// นับเฉพาะเมื่อหน้าเว็บถูกซ่อนจริง ไม่ใช้ blur/fullscreenchange
+// V49: ถ้าออกจากหน้าเว็บจริงให้นับทันทีเหมือนระบบเดิม
+// ส่วน Split Screen จะไม่รีบนับ ต้องหดหน้าจอค้าง 4 วินาทีจึงรายงาน
+// ไม่ใช้ blur/fullscreenchange เพราะ UI ของมือถือทำให้เกิด false positive ได้ง่าย
 document.addEventListener('visibilitychange',()=>{
-  // V46: ต้องออกจากหน้าข้อสอบต่อเนื่อง 3 วินาที จึงนับ 1 ครั้ง
   clearTimeout(hiddenRiskTimer);
   if(document.hidden){
-    hiddenRiskTimer=setTimeout(()=>{if(document.hidden)leave('hidden_3s')},3000);
+    leave('page_hidden');
+  }else{
+    // กลับเข้ามาแล้วรีเซ็ต baseline หลัง UI มือถือสงบเล็กน้อย
+    setTimeout(()=>{if(started&&!submitting)captureProctorBaseline()},700);
+    if(pendingAutoSubmit)setTimeout(()=>showGuardFinalWarning('การออกจากหน้าข้อสอบ'),250);
   }
 });
 
@@ -575,6 +634,7 @@ $('submitBtn').onclick=()=>{if($('submitBtn').disabled)return;submitExam(false,'
 
 async function submitExam(auto,reason){
   if(!started||submitting)return;
+  hideGuardWarning();
   const totalMs=Math.max(1000,totalDurationMs||exam.duration*60*1000);
   const elapsedMs=Math.max(0,totalMs-Math.max(0,endServerMs-Date.now()));
   if(!auto && elapsedMs < totalMs*.5){

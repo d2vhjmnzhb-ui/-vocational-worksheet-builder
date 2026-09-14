@@ -74,7 +74,7 @@ function examsSheet() {
   return getSheet("Exams",["examId","title","duration","maxLeave","showScore","oneAttempt","questionsJson","active","createdAt","allowReview"]);
 }
 function attemptsSheet() {
-  return getSheet("Attempts",["attemptId","examId","studentId","studentName","status","startAt","endAt","score","total","leaves","reason","answersJson","requestId","manualScore","finalScore","gradingJson"]);
+  return getSheet("Attempts",["attemptId","examId","studentId","studentName","status","startAt","endAt","score","total","leaves","reason","answersJson","requestId","manualScore","finalScore","gradingJson","lastRiskEvent","lastRiskAt"]);
 }
 
 function cacheKey(id) { return "exam_"+id; }
@@ -242,13 +242,14 @@ function submitAttempt(b) {
 function getResults(b) {
   const exam=findExam(b.examId); if(!exam)return fail("INVALID_EXAM");
   // V46: รวม Events เพื่อให้ครูเห็นเหตุการณ์เสี่ยงแม้นักเรียนยังทำข้อสอบอยู่
-  const eventCounts={};
+  const eventCounts={},eventLast={};
   const ev=getBook().getSheetByName("Events");
   if(ev){
     const ed=ev.getDataRange().getValues();
     for(let j=1;j<ed.length;j++) if(String(ed[j][1])===String(b.examId)){
       const aid=String(ed[j][2]||"");
       eventCounts[aid]=Math.max(Number(eventCounts[aid]||0),Number(ed[j][4]||0));
+      eventLast[aid]={event:String(ed[j][3]||""),at:ed[j][0]};
     }
   }
   const data=attemptsSheet().getDataRange().getValues(),rows=[];
@@ -257,7 +258,9 @@ function getResults(b) {
     rows.push({
       attemptId:aid,studentId:String(data[i][2]),studentName:String(data[i][3]),status:String(data[i][4]),
       autoScore:Number(data[i][7]||0),manualScore:Number(data[i][13]||0),finalScore:Number(data[i][14]||data[i][7]||0),
-      leaves:Math.max(Number(data[i][9]||0),Number(eventCounts[aid]||0))
+      leaves:Math.max(Number(data[i][9]||0),Number(eventCounts[aid]||0)),
+      lastRiskEvent:(eventLast[aid]&&eventLast[aid].event)||String(data[i][16]||""),
+      lastRiskAt:(eventLast[aid]&&eventLast[aid].at)||data[i][17]||""
     });
   }
   return {ok:true,apiVersion:"V46",exam:{examId:exam.examId,title:exam.title,maxPoints:maxPoints(exam.questions)},rows};
@@ -273,11 +276,12 @@ function getLiveResults(b) {
       rows.push({
         attemptId:String(data[i][0]),studentId:String(data[i][2]),studentName:String(data[i][3]),status:String(data[i][4]),
         autoScore:Number(data[i][7]||0),manualScore:Number(data[i][13]||0),finalScore:Number(data[i][14]||data[i][7]||0),
-        leaves:Number(data[i][9]||0)
+        leaves:Number(data[i][9]||0),
+        lastRiskEvent:String(data[i][16]||""),lastRiskAt:data[i][17]||""
       });
     }
   }
-  return {ok:true,apiVersion:"V47",exam:{examId:exam.examId,title:exam.title,maxPoints:maxPoints(exam.questions)},rows};
+  return {ok:true,apiVersion:"V49",exam:{examId:exam.examId,title:exam.title,maxPoints:maxPoints(exam.questions)},rows};
 }
 
 function getAttemptDetail(b) {
@@ -311,7 +315,10 @@ function logEvent(b) {
     sh.appendRow([new Date(),b.examId||"",b.attemptId||"",b.event||"",count]);
     // V47: เขียนยอดเหตุการณ์ล่าสุดลง Attempts โดยตรง เพื่อให้หน้าครูอ่านแบบเบาและเร็ว
     const a=findAttempt(b.attemptId);
-    if(a && count>Number(a.data[9]||0)) a.sheet.getRange(a.row,10).setValue(count);
+    if(a){
+      if(count>Number(a.data[9]||0)) a.sheet.getRange(a.row,10).setValue(count);
+      a.sheet.getRange(a.row,17,1,2).setValues([[String(b.event||""),new Date()]]);
+    }
   }finally{lock.releaseLock()}
   return {ok:true};
 }
