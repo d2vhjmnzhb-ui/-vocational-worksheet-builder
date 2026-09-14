@@ -163,6 +163,7 @@ $('pubGo').onclick=async()=>{
     });
     const finalExamId=d?.exam?.examId||d?.examId||examId;
     const u=new URL(STUDENT_EXAM_URL,location.href);
+      u.searchParams.set('v','50');
     u.searchParams.set('v','49');
     u.searchParams.set('exam',finalExamId);
     if($('onlineExamGuard').value==='guard'){

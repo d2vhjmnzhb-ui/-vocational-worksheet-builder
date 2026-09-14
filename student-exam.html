@@ -149,7 +149,7 @@ body{padding-bottom:env(safe-area-inset-bottom)}
   </section>
 
   <section id="examArea" class="hidden examShell">
-  <div id="proctorBanner" class="proctorBanner">🛡️ โหมดคุมสอบเปิดอยู่ • ระบบจะนับการออกจากหน้าทันที และตรวจการแบ่งหน้าจอเมื่อหน้าต่างหดค้าง 4 วินาที</div>
+  <div id="proctorBanner" class="proctorBanner">🛡️ โหมดคุมสอบเปิดอยู่ • การเลื่อนหน้าไม่ถือว่าเสี่ยง • ตรวจแบ่งหน้าจอเมื่อพื้นที่หดชัดเจนค้าง 4 วินาที</div>
     <div class="studentTop">
       <div class="infoChip">
         <div class="infoLabel">ผู้เข้าสอบ</div>
@@ -247,6 +247,7 @@ const PROCTOR={
   riskAction:params.get('risk')==='submit'?'submit':'warn'
 };
 let sourceQuestions=null,proctorBaseline=null,resizeTimer=null,orientationGraceUntil=0,hiddenRiskTimer=null,splitCandidateSince=0,splitHoldTimer=null;
+let maxSeenViewport={w:0,h:0};
 let pendingAutoSubmit=false,guardCountdownTimer=null,guardCountdownStarted=false;
 const riskLast={};
 let exam=null,attemptId='',endServerMs=0,startServerMs=0,totalDurationMs=0,timerId=null,started=false,submitting=false,leaveCount=0,lastLeaveAt=0,currentQuestion=0;
@@ -326,7 +327,10 @@ function prepareExamForStudent(studentId){
   exam.questions=qs;
 }
 function captureProctorBaseline(){
-  proctorBaseline={w:window.innerWidth,h:window.innerHeight,sw:screen.width,sh:screen.height,at:Date.now()};
+  const w=window.innerWidth,h=window.innerHeight;
+  maxSeenViewport.w=Math.max(maxSeenViewport.w||0,w);
+  maxSeenViewport.h=Math.max(maxSeenViewport.h||0,h);
+  proctorBaseline={w:maxSeenViewport.w,h:maxSeenViewport.h,sw:screen.width,sh:screen.height,at:Date.now()};
 }
 function flashRisk(msg){
   const old=document.querySelector('.riskFlash');if(old)old.remove();
@@ -363,7 +367,7 @@ function showGuardFinalWarning(label){
     if(sec<=0){
       clearInterval(guardCountdownTimer);guardCountdownTimer=null;
       pendingAutoSubmit=false;
-      await submitExam(true,'พฤติกรรมเสี่ยงครบจำนวนที่กำหนด');
+      await submitExam(true,'พฤติกรรมเสี่ยงครบจำนวนที่กำหนด','risk');
     }
   },1000);
 }
@@ -381,10 +385,11 @@ function isSplitLikeNow(){
   if(!proctorBaseline)return false;
   const active=document.activeElement;const typing=active&&/INPUT|TEXTAREA|SELECT/.test(active.tagName);
   const w=window.innerWidth,h=window.innerHeight,b=proctorBaseline;
-  // V49: จับเฉพาะการหดหน้าต่างแรงแบบ Split Screen; การเลื่อนหน้า/คีย์บอร์ดไม่ควรเข้าเงื่อนไข
-  const widthShrunk=w < b.w*.70;
-  const heightShrunk=!typing && h < b.h*.50;
-  return widthShrunk||heightShrunk;
+  // V50: การเลื่อนหน้า/แถบ URL ของมือถือเปลี่ยน "ความสูง" ได้ จึงห้ามใช้ height-only เป็นเหตุผล
+  // จับ Split Screen หลักจากความกว้างที่หดมาก และกรณีบน-ล่างต้องหดทั้งพื้นที่อย่างชัดเจน
+  const widthShrunk=w < b.w*.72;
+  const strongAreaShrink=!typing && h < b.h*.58 && w < b.w*.90;
+  return widthShrunk||strongAreaShrink;
 }
 function checkSplitResize(){
   if(!PROCTOR.enabled||!PROCTOR.split||!started||!proctorBaseline||Date.now()<orientationGraceUntil)return;
@@ -604,7 +609,7 @@ function tick(){
   $('timer').textContent=String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');
   updateSubmitLock();
   updateMascotMessage();
-  if(left<=0)submitExam(true,'หมดเวลา');
+  if(left<=0)submitExam(true,'หมดเวลา','timer');
 }
 
 async function leave(reason){
@@ -612,7 +617,7 @@ async function leave(reason){
   const n=Date.now();if(n-lastLeaveAt<1500)return;lastLeaveAt=n;
   if(PROCTOR.enabled){await registerRisk(reason,'ออกจากหน้าข้อสอบ');return;}
   leaveCount++;stats();api({action:'logEvent',examId,attemptId,event:reason,leaveCount}).catch(()=>{});
-  if(leaveCount>=exam.maxLeave)await submitExam(true,'ออกจากหน้าสอบครบจำนวนที่กำหนด');
+  if(leaveCount>=exam.maxLeave)await submitExam(true,'ออกจากหน้าสอบครบจำนวนที่กำหนด','legacy_leave');
   else alert(`ตรวจพบการออกจากหน้าสอบ ครั้งที่ ${leaveCount}/${exam.maxLeave}`);
 }
 
@@ -630,9 +635,14 @@ document.addEventListener('visibilitychange',()=>{
   }
 });
 
-$('submitBtn').onclick=()=>{if($('submitBtn').disabled)return;submitExam(false,'ส่งด้วยตนเอง')};
+$('submitBtn').onclick=()=>{if($('submitBtn').disabled)return;submitExam(false,'ส่งด้วยตนเอง','manual')};
 
-async function submitExam(auto,reason){
+async function submitExam(auto,reason,source='unknown'){
+  // V50 safety gate: ถ้าลิงก์เป็น risk=warn เหตุการณ์คุมสอบไม่มีสิทธิ์ส่งข้อสอบเองเด็ดขาด
+  if(auto && (source==='risk'||source==='legacy_leave') && PROCTOR.enabled && PROCTOR.riskAction!=='submit'){
+    flashRisk('บันทึกเหตุการณ์ไว้แล้ว • โหมดเตือนจะไม่ส่งข้อสอบอัตโนมัติ');
+    return;
+  }
   if(!started||submitting)return;
   hideGuardWarning();
   const totalMs=Math.max(1000,totalDurationMs||exam.duration*60*1000);
