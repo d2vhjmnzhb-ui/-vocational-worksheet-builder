@@ -627,9 +627,10 @@ async function leave(reason){
 document.addEventListener('visibilitychange',()=>{
   clearTimeout(hiddenRiskTimer);
   if(document.hidden){
-    leave('page_hidden');
+    // V51: hidden ชั่วคราวจาก UI/ระบบมือถือไม่ควรทำให้เด็กถูกนับผิด
+    // ต้องซ่อนต่อเนื่อง 1.8 วินาทีจึงนับเป็นออกจากข้อสอบจริง
+    hiddenRiskTimer=setTimeout(()=>{if(document.hidden&&started&&!submitting)leave('page_hidden')},1800);
   }else{
-    // กลับเข้ามาแล้วรีเซ็ต baseline หลัง UI มือถือสงบเล็กน้อย
     setTimeout(()=>{if(started&&!submitting)captureProctorBaseline()},700);
     if(pendingAutoSubmit)setTimeout(()=>showGuardFinalWarning('การออกจากหน้าข้อสอบ'),250);
   }

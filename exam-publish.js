@@ -29,7 +29,7 @@ css.textContent=`
 .exam-table th,.exam-table td{padding:9px 10px;border-bottom:1px solid #e8eef3;text-align:left;white-space:nowrap}
 .exam-table th{background:#edf6ff;position:sticky;top:0}
 .exam-mini{padding:7px 10px;background:#e0f2fe;color:#075985}
-.exam-mini.pink{background:#ffe4ee;color:#9d174d}
+.exam-mini.pink{background:#ffe4ee;color:#9d174d}.exam-mini.hide{background:#f1f5f9;color:#475569}.hidden-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}.hidden-count{font-size:.8rem;color:#64748b;font-weight:700}
 .exam-detail{margin-top:15px;border-top:1px dashed #cbd5e1;padding-top:15px}
 .answer-card{border:1px solid #dbe7ef;border-radius:12px;padding:12px;margin:10px 0;background:#fbfdff}
 .answer-card .student-answer{white-space:pre-wrap;background:#fff;border-radius:9px;padding:9px;margin-top:7px;border:1px solid #edf2f7}
@@ -189,6 +189,7 @@ const res=document.createElement('div');res.className='exam-backdrop';res.innerH
   <button class="exam-confirm exam-mini" id="resultRefresh">รีเฟรชผลสอบ</button>
   <button class="exam-secondary exam-mini" id="showAnswerKey">ดูเฉลยชุดนี้</button>
 </div>
+<div class="hidden-tools"><button class="exam-mini hide" id="showHiddenResults">แสดงรายชื่อที่ซ่อน</button><button class="exam-mini hide" id="restoreHiddenResults" style="display:none">นำรายชื่อที่ซ่อนกลับทั้งหมด</button><span class="hidden-count" id="hiddenResultCount"></span></div>
 <div id="resultSummary" class="exam-muted"></div>
 <div class="exam-table-wrap"><table class="exam-table"><thead><tr><th>รหัส</th><th>ชื่อ–สกุล</th><th>สถานะ</th><th>คะแนนปรนัย</th><th>คะแนนถามตอบ</th><th>คะแนนรวม</th><th>เหตุการณ์เสี่ยง</th><th></th></tr></thead><tbody id="resultBody"></tbody></table></div>
 <div class="exam-detail" id="resultDetail"></div>
@@ -219,18 +220,34 @@ function riskTime(v){
   const d=new Date(v);if(isNaN(d))return '';
   return d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
+const HIDDEN_RESULTS_KEY='vocHiddenExamResultsV51';
+let showHiddenResultRows=false;
+function hiddenResultMap(){try{return JSON.parse(localStorage.getItem(HIDDEN_RESULTS_KEY)||'{}')||{}}catch(_){return {}}}
+function hiddenForExam(examId){const m=hiddenResultMap();return new Set(Array.isArray(m[examId])?m[examId]:[])}
+function setHiddenForExam(examId,set){const m=hiddenResultMap();m[examId]=[...set];localStorage.setItem(HIDDEN_RESULTS_KEY,JSON.stringify(m))}
+function hideResultAttempt(attemptId){const examId=$('resultExamSelect').value;if(!examId)return;const set=hiddenForExam(examId);set.add(attemptId);setHiddenForExam(examId,set);lastResultSig='';loadResults(true)}
+function restoreResultAttempt(attemptId){const examId=$('resultExamSelect').value;if(!examId)return;const set=hiddenForExam(examId);set.delete(attemptId);setHiddenForExam(examId,set);lastResultSig='';loadResults(true)}
+function restoreAllHiddenResults(){const examId=$('resultExamSelect').value;if(!examId)return;setHiddenForExam(examId,new Set());showHiddenResultRows=false;lastResultSig='';loadResults(true)}
 function renderResultRows(d){
-  const sig=JSON.stringify(d.rows.map(r=>[r.attemptId,r.status,r.autoScore,r.manualScore,r.finalScore,r.leaves,r.lastRiskEvent,r.lastRiskAt]));
+  const examId=$('resultExamSelect').value;
+  const hidden=hiddenForExam(examId);
+  const visibleRows=showHiddenResultRows?d.rows:d.rows.filter(r=>!hidden.has(r.attemptId));
+  const sig=JSON.stringify([showHiddenResultRows,[...hidden].sort(),d.rows.map(r=>[r.attemptId,r.status,r.autoScore,r.manualScore,r.finalScore,r.leaves,r.lastRiskEvent,r.lastRiskAt])]);
   if(sig===lastResultSig)return;
   lastResultSig=sig;
-  $('resultBody').innerHTML=d.rows.map(r=>`<tr>
-    <td>${esc(r.studentId)}</td><td>${esc(r.studentName)}</td>
+  $('hiddenResultCount').textContent=hidden.size?`ซ่อนไว้ ${hidden.size} คน • เป็นการซ่อนเฉพาะหน้าจอนี้ ไม่ลบข้อมูลจริง`:'';
+  $('showHiddenResults').textContent=showHiddenResultRows?'ซ่อนรายชื่อที่ซ่อนไว้อีกครั้ง':`แสดงรายชื่อที่ซ่อน${hidden.size?` (${hidden.size})`:''}`;
+  $('restoreHiddenResults').style.display=hidden.size?'inline-flex':'none';
+  $('resultBody').innerHTML=visibleRows.map(r=>`<tr${hidden.has(r.attemptId)?' style="opacity:.58;background:#f8fafc"':''}>
+    <td>${esc(r.studentId)}</td><td>${esc(r.studentName)}${hidden.has(r.attemptId)?'<div style="font-size:.72rem;color:#64748b">ซ่อนจากหน้าผลสอบ</div>':''}</td>
     <td><span class="${r.status==='SUBMITTED'?'badge-status':'badge-status badge-wait'}">${r.status==='SUBMITTED'?'ส่งแล้ว':'กำลังทำ'}</span></td>
     <td>${r.autoScore}</td><td>${r.manualScore}</td><td><b>${r.finalScore}</b> / ${d.exam.maxPoints}</td>
     <td><b>${r.leaves}</b>${r.lastRiskEvent?`<div style="margin-top:4px;color:#b42318;font-size:.78rem;font-weight:800">⚠ ${esc(riskLabel(r.lastRiskEvent))}${riskTime(r.lastRiskAt)?` • ${esc(riskTime(r.lastRiskAt))}`:''}</div>`:''}</td>
-    <td><button class="exam-mini" data-attempt="${esc(r.attemptId)}">ดูคำตอบ/ตรวจ</button></td>
+    <td><button class="exam-mini" data-attempt="${esc(r.attemptId)}">ดูคำตอบ/ตรวจ</button> <button class="exam-mini hide" data-${hidden.has(r.attemptId)?'restore':'hide'}attempt="${esc(r.attemptId)}">${hidden.has(r.attemptId)?'นำกลับ':'ซ่อน'}</button></td>
   </tr>`).join('');
-  document.querySelectorAll('[data-attempt]').forEach(b=>b.onclick=()=>openAttempt(b.dataset.attempt));
+  res.querySelectorAll('[data-attempt]').forEach(b=>b.onclick=()=>openAttempt(b.dataset.attempt));
+  res.querySelectorAll('[data-hideattempt]').forEach(b=>b.onclick=()=>hideResultAttempt(b.dataset.hideattempt));
+  res.querySelectorAll('[data-restoreattempt]').forEach(b=>b.onclick=()=>restoreResultAttempt(b.dataset.restoreattempt));
 }
 async function loadResults(silent=false){
   const examId=$('resultExamSelect').value;if(!examId||resultLiveBusy)return;
@@ -250,6 +267,8 @@ function startResultLive(){
 }
 $('resultRefresh').onclick=()=>loadResults(false);
 $('resultExamSelect').onchange=()=>{lastResultSig='';loadResults(false);$('resultDetail').innerHTML=''};
+$('showHiddenResults').onclick=()=>{showHiddenResultRows=!showHiddenResultRows;lastResultSig='';loadResults(true)};
+$('restoreHiddenResults').onclick=()=>{if(confirm('นำรายชื่อที่ซ่อนกลับมาแสดงทั้งหมดหรือไม่?'))restoreAllHiddenResults()};
 startResultLive();
 
 $('showAnswerKey').onclick=async()=>{
@@ -305,12 +324,12 @@ async function loadPublishedExams(){
   const box=$('publishedList'),status=$('publishedStatus');box.innerHTML='<div class="published-empty">กำลังโหลดรายการ...</div>';status.textContent='';
   try{
     const d=await api({action:'listExams'});
-    if(d.apiVersion!=='V45')status.innerHTML='<span style="color:#b45309">Google Apps Script ยังเป็นเวอร์ชันเก่า กรุณาอัปเดต Code.gs จาก V45 แล้ว Deploy เวอร์ชันใหม่ก่อนใช้ปุ่มปิด/ลบ</span>';
+    if(d.apiVersion!=='V51')status.innerHTML='<span style="color:#b45309">Google Apps Script ยังเป็นเวอร์ชันเก่า กรุณาอัปเดต Code.gs จาก V51 แล้ว Deploy เวอร์ชันใหม่ก่อนใช้ปุ่มหยุดรับ/เปิดรับ/ลบถาวร</span>';
     if(!d.exams.length){box.innerHTML='<div class="published-empty">ยังไม่มีข้อสอบที่เผยแพร่</div>';return}
     box.innerHTML=d.exams.map(x=>`<div class="published-card" data-published="${esc(x.examId)}">
-      <div class="published-top"><div><div class="published-title">${esc(x.title||'ไม่มีชื่อ')}</div><div class="published-id">${esc(x.examId)} • ${esc(fmtDate(x.createdAt))}</div></div><span class="published-pill ${x.active===false?'closed':'open'}">${x.active===false?'ปิดรับคำตอบ':'เปิดใช้งาน'}</span></div>
+      <div class="published-top"><div><div class="published-title">${esc(x.title||'ไม่มีชื่อ')}</div><div class="published-id">${esc(x.examId)} • ${esc(fmtDate(x.createdAt))}</div></div><span class="published-pill ${x.active===false?'closed':'open'}">${x.active===false?'หยุดรับคำตอบ':'กำลังรับคำตอบ'}</span></div>
       <div class="published-meta"><span class="published-pill">${Number(x.questionCount||0)} ข้อ</span><span class="published-pill">${Number(x.duration||0)} นาที</span><span class="published-pill">ผู้เข้าสอบ ${Number(x.count||0)} คน</span></div>
-      <div class="published-actions">${x.active===false?`<button class="exam-mini success" data-reopen="${esc(x.examId)}">เปิดข้อสอบอีกครั้ง</button>`:`<button class="exam-mini warning" data-closeexam="${esc(x.examId)}">ปิดรับคำตอบ</button>`}<button class="exam-mini" data-viewresults="${esc(x.examId)}">ดูผลสอบ</button><button class="exam-mini danger" data-deleteexam="${esc(x.examId)}" data-title="${esc(x.title||'')}">ลบถาวร</button></div>
+      <div class="published-actions">${x.active===false?`<button class="exam-mini success" data-reopen="${esc(x.examId)}">กลับมารับคำตอบ</button>`:`<button class="exam-mini warning" data-closeexam="${esc(x.examId)}">หยุดรับคำตอบ</button>`}<button class="exam-mini" data-viewresults="${esc(x.examId)}">ดูผลสอบ</button><button class="exam-mini danger" data-deleteexam="${esc(x.examId)}" data-title="${esc(x.title||'')}">ลบถาวร</button></div>
     </div>`).join('');
     box.querySelectorAll('[data-closeexam]').forEach(b=>b.onclick=()=>togglePublished(b.dataset.closeexam,false,b));
     box.querySelectorAll('[data-reopen]').forEach(b=>b.onclick=()=>togglePublished(b.dataset.reopen,true,b));
@@ -319,11 +338,11 @@ async function loadPublishedExams(){
   }catch(e){box.innerHTML=`<div class="published-empty">โหลดรายการไม่ได้: ${esc(e.message)}</div>`}
 }
 async function togglePublished(examId,active,btn){
-  const actionText=active?'เปิดข้อสอบ':'ปิดรับคำตอบ';
+  const actionText=active?'เปิดข้อสอบ':'หยุดรับคำตอบ';
   if(!confirm(`${actionText}ชุดนี้หรือไม่?`))return;
   const old=btn.textContent;btn.disabled=true;btn.textContent='กำลังบันทึก...';
   try{
-    await postCommandNoCors({action:'setExamActive',examId,active},d=>{const x=d.exams.find(e=>e.examId===examId);return x&&Boolean(x.active)===active});
+    await api({action:'setExamActive',examId,active:String(active),_v:'51'});
     await loadPublishedExams();
   }catch(e){alert(`${actionText}ไม่สำเร็จ: ${e.message}`);btn.disabled=false;btn.textContent=old}
 }
@@ -333,7 +352,7 @@ async function deletePublished(examId,title,btn){
   const typed=prompt('เพื่อยืนยัน ให้พิมพ์คำว่า ลบ');if(typed!=='ลบ')return;
   btn.disabled=true;btn.textContent='กำลังลบ...';
   try{
-    await postCommandNoCors({action:'deleteExam',examId},d=>!d.exams.some(e=>e.examId===examId));
+    await api({action:'deleteExam',examId,_v:'51'});
     await loadPublishedExams();
   }catch(e){alert('ลบไม่สำเร็จ: '+e.message);btn.disabled=false;btn.textContent='ลบถาวร'}
 }

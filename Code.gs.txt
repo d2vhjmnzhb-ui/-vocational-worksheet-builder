@@ -9,6 +9,8 @@ function doGet(e) {
       case "getExam": result = getExam(p); break;
       case "getTeacherExam": result = getTeacherExam(p); break;
       case "listExams": result = listExams(); break;
+      case "setExamActive": result = setExamActive(p); break;
+      case "deleteExam": result = deleteExam(p); break;
       case "getResults": result = getResults(p); break;
       case "getLiveResults": result = getLiveResults(p); break;
       case "getAttemptDetail": result = getAttemptDetail(p); break;
@@ -138,7 +140,7 @@ function listExams() {
       count:counts[String(ed[i][0])]||0,questionCount:qs.length
     });
   }
-  return {ok:true,apiVersion:"V45",exams:exams.slice(0,100)};
+  return {ok:true,apiVersion:"V51",exams:exams.slice(0,100)};
 }
 
 function setExamActive(b) {
