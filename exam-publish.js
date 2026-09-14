@@ -37,7 +37,8 @@ css.textContent=`
 .grade-row{display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center;margin-top:8px}
 .badge-status{display:inline-block;border-radius:999px;padding:4px 8px;font-size:.75rem;font-weight:800;background:#ecfdf5;color:#047857}
 .badge-wait{background:#fff7ed;color:#c2410c}
-@media(max-width:650px){.exam-grid{grid-template-columns:1fr}.exam-modal{padding:16px}.grade-row{grid-template-columns:1fr}}
+.published-list{display:grid;gap:10px;margin-top:14px}.published-card{border:1px solid #dbe7ef;border-radius:14px;padding:13px;background:#fff}.published-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.published-title{font-weight:800;font-size:1rem}.published-id{font-size:.78rem;color:#64748b;margin-top:3px;word-break:break-all}.published-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}.published-pill{font-size:.78rem;padding:4px 8px;border-radius:999px;background:#eef6fb;color:#31536a}.published-pill.open{background:#dcfce7;color:#166534}.published-pill.closed{background:#f1f5f9;color:#475569}.published-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}.exam-mini.danger{background:#fee2e2;color:#991b1b}.exam-mini.warning{background:#fff7ed;color:#9a3412}.exam-mini.success{background:#dcfce7;color:#166534}.published-empty{padding:28px;text-align:center;color:#64748b;border:1px dashed #cbd5e1;border-radius:14px}.exam-danger-note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:11px;padding:10px 12px;font-size:.86rem;margin:8px 0}
+@media(max-width:650px){.exam-grid{grid-template-columns:1fr}.exam-modal{padding:16px}.grade-row{grid-template-columns:1fr}.published-top{display:block}}
 `;document.head.appendChild(css);
 
 function getMeta(id,fallback=''){const el=$(id);return el?String(el.value||'').trim():fallback}
@@ -91,6 +92,15 @@ async function createExamNoCors(payload){
   for(let i=0;i<16;i++){await new Promise(r=>setTimeout(r,500));const d=await jsonp({action:'getExam',examId:payload.examId}).catch(()=>null);if(d&&d.ok)return d}
   throw new Error('บันทึกข้อสอบไม่สำเร็จ กรุณาลองอีกครั้ง');
 }
+async function postCommandNoCors(payload,verify){
+  await fetch(EXAM_API_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+  for(let i=0;i<18;i++){
+    await new Promise(r=>setTimeout(r,450));
+    const d=await jsonp({action:'listExams'}).catch(()=>null);
+    if(d&&d.ok&&(!verify||verify(d)))return d;
+  }
+  throw new Error('เซิร์ฟเวอร์ยังไม่ยืนยันการเปลี่ยนแปลง กรุณารีเฟรชแล้วตรวจอีกครั้ง');
+}
 
 function addButtons(){
   if($('publishExamBtn'))return;
@@ -105,7 +115,7 @@ const pub=document.createElement('div');pub.className='exam-backdrop';pub.innerH
 <h2>เผยแพร่เป็นข้อสอบออนไลน์</h2><p class="exam-muted" id="examDetected"></p>
 <div class="exam-field"><label>ชื่อชุดข้อสอบ</label><input id="onlineExamTitle"></div>
 <div class="exam-grid"><div class="exam-field"><label>เวลาสอบ (นาที)</label><input id="onlineExamMinutes" type="number" min="1" max="300" value="50"></div><div class="exam-field"><label>เหตุการณ์เสี่ยงครบกี่ครั้ง</label><input id="onlineExamMaxLeave" type="number" min="1" max="20" value="3"></div></div>
-<div class="exam-grid"><div class="exam-field"><label>โหมดการสอบ</label><select id="onlineExamGuard"><option value="guard" selected>โหมดคุมสอบ (แนะนำ)</option><option value="normal">โหมดปกติ</option></select></div><div class="exam-field"><label>เมื่อพบพฤติกรรมเสี่ยงครบจำนวน</label><select id="onlineExamRiskAction"><option value="warn" selected>บันทึกและเตือน — ให้ครูตรวจภายหลัง</option><option value="submit">ส่งข้อสอบอัตโนมัติ</option></select></div></div>
+<div class="exam-grid"><div class="exam-field"><label>โหมดการสอบ</label><select id="onlineExamGuard"><option value="guard" selected>โหมดคุมสอบ (แนะนำ)</option><option value="normal">โหมดปกติ</option></select></div><div class="exam-field"><label>เมื่อพบพฤติกรรมเสี่ยงครบจำนวน</label><select id="onlineExamRiskAction"><option value="submit" selected>ส่งข้อสอบอัตโนมัติเมื่อครบจำนวน</option><option value="warn">บันทึกและเตือน — ให้ครูตรวจภายหลัง</option></select></div></div>
 <div id="examGuardOptions" style="padding:12px;border:1px solid #dbeafe;background:#f8fbff;border-radius:12px;margin:8px 0 12px">
   <div style="font-weight:800;margin-bottom:8px">การป้องกันในโหมดคุมสอบ</div>
   <div class="exam-grid">
@@ -212,7 +222,10 @@ async function loadResults(){
     document.querySelectorAll('[data-attempt]').forEach(b=>b.onclick=()=>openAttempt(b.dataset.attempt));
   }catch(e){$('resultSummary').textContent='โหลดผลสอบไม่ได้: '+e.message}
 }
+let resultLiveTimer=null;
+function startResultLive(){clearInterval(resultLiveTimer);resultLiveTimer=setInterval(()=>{if(res.classList.contains('open'))loadResults(true)},3000)}
 $('resultRefresh').onclick=loadResults;$('resultExamSelect').onchange=()=>{loadResults();$('resultDetail').innerHTML=''};
+startResultLive();
 
 $('showAnswerKey').onclick=async()=>{
   const examId=$('resultExamSelect').value;if(!examId)return;
@@ -251,9 +264,61 @@ async function openAttempt(attemptId){
 }
 
 
+// Published exam manager (V45)
+const mgr=document.createElement('div');mgr.className='exam-backdrop';mgr.innerHTML=`<div class="exam-modal">
+<h2>ข้อสอบที่เผยแพร่แล้ว</h2>
+<p class="exam-muted">ปิดข้อสอบเพื่อเก็บคะแนนไว้แต่หยุดรับผู้เข้าสอบใหม่ หรือเปิดกลับมาใหม่ภายหลังได้</p>
+<div class="exam-danger-note"><b>ลบถาวร</b> จะลบชุดข้อสอบ ผลสอบ และบันทึกเหตุการณ์ของชุดนั้นออกจาก Google Sheet ด้วย</div>
+<div class="exam-toolbar"><button class="exam-confirm exam-mini" id="publishedRefresh">รีเฟรชรายการ</button></div>
+<div id="publishedStatus" class="exam-muted"></div><div id="publishedList" class="published-list"></div>
+<div class="exam-actions"><button class="exam-cancel" id="mgrClose">ปิด</button></div>
+</div>`;document.body.appendChild(mgr);
+$('mgrClose').onclick=()=>mgr.classList.remove('open');mgr.onclick=e=>{if(e.target===mgr)mgr.classList.remove('open')};
+
+function fmtDate(v){try{const d=new Date(v);return isNaN(d)?'—':d.toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'})}catch(_){return '—'}}
+async function loadPublishedExams(){
+  const box=$('publishedList'),status=$('publishedStatus');box.innerHTML='<div class="published-empty">กำลังโหลดรายการ...</div>';status.textContent='';
+  try{
+    const d=await api({action:'listExams'});
+    if(d.apiVersion!=='V45')status.innerHTML='<span style="color:#b45309">Google Apps Script ยังเป็นเวอร์ชันเก่า กรุณาอัปเดต Code.gs จาก V45 แล้ว Deploy เวอร์ชันใหม่ก่อนใช้ปุ่มปิด/ลบ</span>';
+    if(!d.exams.length){box.innerHTML='<div class="published-empty">ยังไม่มีข้อสอบที่เผยแพร่</div>';return}
+    box.innerHTML=d.exams.map(x=>`<div class="published-card" data-published="${esc(x.examId)}">
+      <div class="published-top"><div><div class="published-title">${esc(x.title||'ไม่มีชื่อ')}</div><div class="published-id">${esc(x.examId)} • ${esc(fmtDate(x.createdAt))}</div></div><span class="published-pill ${x.active===false?'closed':'open'}">${x.active===false?'ปิดรับคำตอบ':'เปิดใช้งาน'}</span></div>
+      <div class="published-meta"><span class="published-pill">${Number(x.questionCount||0)} ข้อ</span><span class="published-pill">${Number(x.duration||0)} นาที</span><span class="published-pill">ผู้เข้าสอบ ${Number(x.count||0)} คน</span></div>
+      <div class="published-actions">${x.active===false?`<button class="exam-mini success" data-reopen="${esc(x.examId)}">เปิดข้อสอบอีกครั้ง</button>`:`<button class="exam-mini warning" data-closeexam="${esc(x.examId)}">ปิดรับคำตอบ</button>`}<button class="exam-mini" data-viewresults="${esc(x.examId)}">ดูผลสอบ</button><button class="exam-mini danger" data-deleteexam="${esc(x.examId)}" data-title="${esc(x.title||'')}">ลบถาวร</button></div>
+    </div>`).join('');
+    box.querySelectorAll('[data-closeexam]').forEach(b=>b.onclick=()=>togglePublished(b.dataset.closeexam,false,b));
+    box.querySelectorAll('[data-reopen]').forEach(b=>b.onclick=()=>togglePublished(b.dataset.reopen,true,b));
+    box.querySelectorAll('[data-deleteexam]').forEach(b=>b.onclick=()=>deletePublished(b.dataset.deleteexam,b.dataset.title,b));
+    box.querySelectorAll('[data-viewresults]').forEach(b=>b.onclick=async()=>{const id=b.dataset.viewresults;mgr.classList.remove('open');await openResults();$('resultExamSelect').value=id;await loadResults()});
+  }catch(e){box.innerHTML=`<div class="published-empty">โหลดรายการไม่ได้: ${esc(e.message)}</div>`}
+}
+async function togglePublished(examId,active,btn){
+  const actionText=active?'เปิดข้อสอบ':'ปิดรับคำตอบ';
+  if(!confirm(`${actionText}ชุดนี้หรือไม่?`))return;
+  const old=btn.textContent;btn.disabled=true;btn.textContent='กำลังบันทึก...';
+  try{
+    await postCommandNoCors({action:'setExamActive',examId,active},d=>{const x=d.exams.find(e=>e.examId===examId);return x&&Boolean(x.active)===active});
+    await loadPublishedExams();
+  }catch(e){alert(`${actionText}ไม่สำเร็จ: ${e.message}`);btn.disabled=false;btn.textContent=old}
+}
+async function deletePublished(examId,title,btn){
+  const msg=`ต้องการลบถาวรจริงหรือไม่?\n\n${title||examId}\n${examId}\n\nผลสอบและข้อมูลผู้เข้าสอบของชุดนี้จะถูกลบด้วย และเรียกคืนจากหน้าเว็บไม่ได้`;
+  if(!confirm(msg))return;
+  const typed=prompt('เพื่อยืนยัน ให้พิมพ์คำว่า ลบ');if(typed!=='ลบ')return;
+  btn.disabled=true;btn.textContent='กำลังลบ...';
+  try{
+    await postCommandNoCors({action:'deleteExam',examId},d=>!d.exams.some(e=>e.examId===examId));
+    await loadPublishedExams();
+  }catch(e){alert('ลบไม่สำเร็จ: '+e.message);btn.disabled=false;btn.textContent='ลบถาวร'}
+}
+function openPublishedExamManager(){mgr.classList.add('open');loadPublishedExams()}
+$('publishedRefresh').onclick=loadPublishedExams;
+
 // Public hooks for the professional dashboard.
 window.openOnlineExamPublish = openPublish;
 window.openOnlineExamResults = openResults;
+window.openPublishedExamManager = openPublishedExamManager;
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',addButtons);else addButtons();
 })();

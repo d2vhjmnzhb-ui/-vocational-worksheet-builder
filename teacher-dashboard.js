@@ -107,13 +107,14 @@ function buildShell(){
  shell.insertAdjacentElement('afterend',examPane);
 
  const resultsPane=document.createElement('section');resultsPane.id='proResultsPane';resultsPane.className='pro-pane';resultsPane.innerHTML=`
-  <article class="pro-card"><div class="pro-results-hero"><div><div class="pro-kicker">EXAM RESULTS</div><h2>ผลการสอบออนไลน์</h2><p>ดูรายชื่อ คะแนนปรนัย ตรวจคำตอบข้อเขียน ให้คะแนน และดูเฉลยจาก Google Sheet</p><button class="pro-btn primary" id="proOpenResults">${svg('results')}<span>เปิดผลการสอบ</span></button></div><div class="pro-results-icon">${svg('results')}</div></div></article>`;
+  <article class="pro-card"><div class="pro-results-hero"><div><div class="pro-kicker">EXAM RESULTS</div><h2>ผลการสอบออนไลน์</h2><p>ดูรายชื่อ คะแนน ตรวจคำตอบ และจัดการข้อสอบที่เคยเผยแพร่จาก Google Sheet</p><div class="pro-actions-row"><button class="pro-btn primary" id="proOpenResults">${svg('results')}<span>เปิดผลการสอบ</span></button><button class="pro-btn secondary" id="proManagePublished">${svg('list')}<span>ข้อสอบที่เผยแพร่แล้ว</span></button></div></div><div class="pro-results-icon">${svg('results')}</div></div></article>`;
  examPane.insertAdjacentElement('afterend',resultsPane);
 
  document.querySelectorAll('#proTeacherNav button').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
  document.querySelectorAll('[data-exam-tab]').forEach(b=>b.onclick=()=>switchExamTab(b.dataset.examTab));
  $('proPublishBtn').onclick=()=>{if(typeof window.openOnlineExamPublish==='function')window.openOnlineExamPublish();else{const b=$('publishExamBtn');if(b)b.click();else alert('เครื่องมือเผยแพร่ยังโหลดไม่เสร็จ กรุณารีเฟรชหน้าเว็บ')}};
  $('proOpenResults').onclick=()=>{if(typeof window.openOnlineExamResults==='function')window.openOnlineExamResults();else{const b=$('examResultsBtn');if(b)b.click();else alert('เครื่องมือผลการสอบยังโหลดไม่เสร็จ กรุณารีเฟรชหน้าเว็บ')}};
+ $('proManagePublished').onclick=()=>{if(typeof window.openPublishedExamManager==='function')window.openPublishedExamManager();else alert('เครื่องมือจัดการข้อสอบยังโหลดไม่เสร็จ กรุณารีเฟรชหน้าเว็บ')};
 
  bindOnlineStudio();
  bindQuickAdd();

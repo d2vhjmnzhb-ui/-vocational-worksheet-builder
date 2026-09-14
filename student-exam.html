@@ -235,7 +235,7 @@ const PROCTOR={
   split:params.get('split')==='1',
   riskAction:params.get('risk')==='submit'?'submit':'warn'
 };
-let sourceQuestions=null,proctorBaseline=null,resizeTimer=null,orientationGraceUntil=0;
+let sourceQuestions=null,proctorBaseline=null,resizeTimer=null,orientationGraceUntil=0,hiddenRiskTimer=null,splitCandidateSince=0;
 const riskLast={};
 let exam=null,attemptId='',endServerMs=0,startServerMs=0,totalDurationMs=0,timerId=null,started=false,submitting=false,leaveCount=0,lastLeaveAt=0,currentQuestion=0;
 const answers={};
@@ -342,15 +342,20 @@ function checkSplitResize(){
   if(!PROCTOR.enabled||!PROCTOR.split||!started||!proctorBaseline||Date.now()<orientationGraceUntil)return;
   const active=document.activeElement;const typing=active&&/INPUT|TEXTAREA|SELECT/.test(active.tagName);
   const w=window.innerWidth,h=window.innerHeight,b=proctorBaseline;
-  const widthShrunk=w < b.w*.72;
-  const heightShrunk=!typing && h < b.h*.55;
-  if(widthShrunk||heightShrunk)registerRisk('viewport_shrink','ขนาดหน้าต่างเปลี่ยนผิดปกติ / อาจแบ่งหน้าจอ');
+  // V46: ต้องหดมากและค้างจริง ไม่ใช้การเลื่อนหน้า/เปิดคีย์บอร์ดเป็นเหตุการณ์เสี่ยง
+  const widthShrunk=w < b.w*.62;
+  const heightShrunk=!typing && h < b.h*.45;
+  if(widthShrunk||heightShrunk){
+    if(!splitCandidateSince)splitCandidateSince=Date.now();
+    if(Date.now()-splitCandidateSince>=4000){splitCandidateSince=0;registerRisk('split_screen_confirmed','ตรวจพบหน้าจอถูกแบ่ง/พื้นที่ข้อสอบหดต่อเนื่อง');}
+  }else splitCandidateSince=0;
 }
-window.addEventListener('resize',()=>{if(!PROCTOR.enabled||!PROCTOR.split)return;clearTimeout(resizeTimer);resizeTimer=setTimeout(checkSplitResize,1100)});
-window.addEventListener('orientationchange',()=>{orientationGraceUntil=Date.now()+2500;setTimeout(captureProctorBaseline,1800)});
-window.addEventListener('blur',()=>{if(PROCTOR.enabled&&PROCTOR.split&&started&&!document.hidden)registerRisk('window_blur','สลับโฟกัสออกจากหน้าข้อสอบ')});
-document.addEventListener('fullscreenchange',()=>{if(PROCTOR.enabled&&PROCTOR.fullscreen&&started&&!document.fullscreenElement)registerRisk('fullscreen_exit','ออกจากโหมดเต็มจอ')});
-document.addEventListener('webkitfullscreenchange',()=>{if(PROCTOR.enabled&&PROCTOR.fullscreen&&started&&!document.webkitFullscreenElement)registerRisk('fullscreen_exit','ออกจากโหมดเต็มจอ')});
+window.addEventListener('resize',()=>{if(!PROCTOR.enabled||!PROCTOR.split)return;clearTimeout(resizeTimer);resizeTimer=setTimeout(checkSplitResize,1200)});
+window.addEventListener('orientationchange',()=>{orientationGraceUntil=Date.now()+4000;splitCandidateSince=0;setTimeout(captureProctorBaseline,3000)});
+// blur และการออก fullscreen บนมือถือเกิดจาก UI ระบบได้ง่าย จึงไม่ตัดเป็นความเสี่ยงใน V46
+window.addEventListener('blur',()=>{});
+document.addEventListener('fullscreenchange',()=>{});
+document.addEventListener('webkitfullscreenchange',()=>{});
 document.addEventListener('copy',e=>{if(PROCTOR.enabled&&started){e.preventDefault();flashRisk('โหมดคุมสอบไม่อนุญาตให้คัดลอกข้อความ')}});
 document.addEventListener('contextmenu',e=>{if(PROCTOR.enabled&&started)e.preventDefault()});
 
@@ -559,7 +564,11 @@ async function leave(reason){
 
 // นับเฉพาะเมื่อหน้าเว็บถูกซ่อนจริง ไม่ใช้ blur/fullscreenchange
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden) leave('hidden');
+  // V46: ต้องออกจากหน้าข้อสอบต่อเนื่อง 3 วินาที จึงนับ 1 ครั้ง
+  clearTimeout(hiddenRiskTimer);
+  if(document.hidden){
+    hiddenRiskTimer=setTimeout(()=>{if(document.hidden)leave('hidden_3s')},3000);
+  }
 });
 
 $('submitBtn').onclick=()=>{if($('submitBtn').disabled)return;submitExam(false,'ส่งด้วยตนเอง')};

@@ -34,6 +34,8 @@ function doPost(e) {
     switch(b.action||"") {
       case "createExam": result=createExam(b); break;
       case "submitAttempt": result=submitAttempt(b); break;
+      case "setExamActive": result=setExamActive(b); break;
+      case "deleteExam": result=deleteExam(b); break;
       default: result=fail("UNKNOWN_ACTION");
     }
     return output(result);
@@ -127,8 +129,49 @@ function listExams() {
   const ed=examsSheet().getDataRange().getValues(), ad=attemptsSheet().getDataRange().getValues(), counts={};
   for(let i=1;i<ad.length;i++) counts[String(ad[i][1])]=(counts[String(ad[i][1])]||0)+1;
   const exams=[];
-  for(let i=ed.length-1;i>=1;i--) exams.push({examId:String(ed[i][0]),title:String(ed[i][1]),createdAt:ed[i][8],count:counts[String(ed[i][0])]||0});
-  return {ok:true,exams:exams.slice(0,60)};
+  for(let i=ed.length-1;i>=1;i--) {
+    let qs=[]; try{qs=JSON.parse(ed[i][6]||"[]")}catch(_){}
+    exams.push({
+      examId:String(ed[i][0]),title:String(ed[i][1]),duration:Number(ed[i][2]||0),
+      active:String(ed[i][7]).toLowerCase()!=="false",createdAt:ed[i][8],
+      count:counts[String(ed[i][0])]||0,questionCount:qs.length
+    });
+  }
+  return {ok:true,apiVersion:"V45",exams:exams.slice(0,100)};
+}
+
+function setExamActive(b) {
+  const examId=String(b.examId||"").trim(); if(!examId)return fail("MISSING_EXAM_ID");
+  const sh=examsSheet(), data=sh.getDataRange().getValues(); let row=0;
+  for(let i=1;i<data.length;i++) if(String(data[i][0])===examId){row=i+1;break;}
+  if(!row)return fail("INVALID_EXAM");
+  const active=bool(b.active,false);
+  const lock=LockService.getScriptLock(); lock.waitLock(30000);
+  try{sh.getRange(row,8).setValue(active)}finally{lock.releaseLock()}
+  clearExamCache(examId);
+  return {ok:true,examId:examId,active:active};
+}
+
+function deleteRowsByExamId(sh,examCol,examId) {
+  const data=sh.getDataRange().getValues(); let removed=0;
+  for(let i=data.length-1;i>=1;i--) if(String(data[i][examCol-1])===examId){sh.deleteRow(i+1);removed++;}
+  return removed;
+}
+
+function deleteExam(b) {
+  const examId=String(b.examId||"").trim(); if(!examId)return fail("MISSING_EXAM_ID");
+  const sh=examsSheet(), data=sh.getDataRange().getValues(); let examRow=0;
+  for(let i=1;i<data.length;i++) if(String(data[i][0])===examId){examRow=i+1;break;}
+  if(!examRow)return fail("INVALID_EXAM");
+  const lock=LockService.getScriptLock(); lock.waitLock(30000);
+  let removedAttempts=0,removedEvents=0;
+  try {
+    removedAttempts=deleteRowsByExamId(attemptsSheet(),2,examId);
+    const ss=getBook(),ev=ss.getSheetByName("Events"); if(ev)removedEvents=deleteRowsByExamId(ev,2,examId);
+    sh.deleteRow(examRow);
+  } finally { lock.releaseLock(); }
+  clearExamCache(examId);
+  return {ok:true,examId:examId,removedAttempts:removedAttempts,removedEvents:removedEvents};
 }
 
 function attemptResponse(row,exam) {
@@ -197,12 +240,26 @@ function submitAttempt(b) {
 
 function getResults(b) {
   const exam=findExam(b.examId); if(!exam)return fail("INVALID_EXAM");
+  // V46: รวม Events เพื่อให้ครูเห็นเหตุการณ์เสี่ยงแม้นักเรียนยังทำข้อสอบอยู่
+  const eventCounts={};
+  const ev=getBook().getSheetByName("Events");
+  if(ev){
+    const ed=ev.getDataRange().getValues();
+    for(let j=1;j<ed.length;j++) if(String(ed[j][1])===String(b.examId)){
+      const aid=String(ed[j][2]||"");
+      eventCounts[aid]=Math.max(Number(eventCounts[aid]||0),Number(ed[j][4]||0));
+    }
+  }
   const data=attemptsSheet().getDataRange().getValues(),rows=[];
-  for(let i=1;i<data.length;i++) if(String(data[i][1])===String(b.examId)) rows.push({
-    attemptId:String(data[i][0]),studentId:String(data[i][2]),studentName:String(data[i][3]),status:String(data[i][4]),
-    autoScore:Number(data[i][7]||0),manualScore:Number(data[i][13]||0),finalScore:Number(data[i][14]||data[i][7]||0),leaves:Number(data[i][9]||0)
-  });
-  return {ok:true,exam:{examId:exam.examId,title:exam.title,maxPoints:maxPoints(exam.questions)},rows};
+  for(let i=1;i<data.length;i++) if(String(data[i][1])===String(b.examId)) {
+    const aid=String(data[i][0]);
+    rows.push({
+      attemptId:aid,studentId:String(data[i][2]),studentName:String(data[i][3]),status:String(data[i][4]),
+      autoScore:Number(data[i][7]||0),manualScore:Number(data[i][13]||0),finalScore:Number(data[i][14]||data[i][7]||0),
+      leaves:Math.max(Number(data[i][9]||0),Number(eventCounts[aid]||0))
+    });
+  }
+  return {ok:true,apiVersion:"V46",exam:{examId:exam.examId,title:exam.title,maxPoints:maxPoints(exam.questions)},rows};
 }
 
 function getAttemptDetail(b) {
