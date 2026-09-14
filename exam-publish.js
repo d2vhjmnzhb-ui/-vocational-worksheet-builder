@@ -207,24 +207,37 @@ async function openResults(){
   }catch(e){$('resultSummary').textContent='โหลดข้อมูลไม่ได้: '+e.message}
 }
 
-async function loadResults(){
-  const examId=$('resultExamSelect').value;if(!examId)return;
-  $('resultSummary').textContent='กำลังโหลดผลสอบ...';$('resultBody').innerHTML='';
-  try{
-    const d=await api({action:'getResults',examId});
-    $('resultSummary').textContent=`${d.exam.title} • ผู้เข้าสอบ ${d.rows.length} คน • คะแนนเต็ม ${d.exam.maxPoints} คะแนน`;
-    $('resultBody').innerHTML=d.rows.map(r=>`<tr>
-      <td>${esc(r.studentId)}</td><td>${esc(r.studentName)}</td>
-      <td><span class="${r.status==='SUBMITTED'?'badge-status':'badge-status badge-wait'}">${r.status==='SUBMITTED'?'ส่งแล้ว':'กำลังทำ'}</span></td>
-      <td>${r.autoScore}</td><td>${r.manualScore}</td><td><b>${r.finalScore}</b> / ${d.exam.maxPoints}</td><td>${r.leaves}</td>
-      <td><button class="exam-mini" data-attempt="${esc(r.attemptId)}">ดูคำตอบ/ตรวจ</button></td>
-    </tr>`).join('');
-    document.querySelectorAll('[data-attempt]').forEach(b=>b.onclick=()=>openAttempt(b.dataset.attempt));
-  }catch(e){$('resultSummary').textContent='โหลดผลสอบไม่ได้: '+e.message}
+let resultLiveTimer=null,resultLiveBusy=false,lastResultSig='';
+function renderResultRows(d){
+  const sig=JSON.stringify(d.rows.map(r=>[r.attemptId,r.status,r.autoScore,r.manualScore,r.finalScore,r.leaves]));
+  if(sig===lastResultSig)return;
+  lastResultSig=sig;
+  $('resultBody').innerHTML=d.rows.map(r=>`<tr>
+    <td>${esc(r.studentId)}</td><td>${esc(r.studentName)}</td>
+    <td><span class="${r.status==='SUBMITTED'?'badge-status':'badge-status badge-wait'}">${r.status==='SUBMITTED'?'ส่งแล้ว':'กำลังทำ'}</span></td>
+    <td>${r.autoScore}</td><td>${r.manualScore}</td><td><b>${r.finalScore}</b> / ${d.exam.maxPoints}</td><td>${r.leaves}</td>
+    <td><button class="exam-mini" data-attempt="${esc(r.attemptId)}">ดูคำตอบ/ตรวจ</button></td>
+  </tr>`).join('');
+  document.querySelectorAll('[data-attempt]').forEach(b=>b.onclick=()=>openAttempt(b.dataset.attempt));
 }
-let resultLiveTimer=null;
-function startResultLive(){clearInterval(resultLiveTimer);resultLiveTimer=setInterval(()=>{if(res.classList.contains('open'))loadResults(true)},3000)}
-$('resultRefresh').onclick=loadResults;$('resultExamSelect').onchange=()=>{loadResults();$('resultDetail').innerHTML=''};
+async function loadResults(silent=false){
+  const examId=$('resultExamSelect').value;if(!examId||resultLiveBusy)return;
+  resultLiveBusy=true;
+  if(!silent){$('resultSummary').textContent='กำลังโหลดผลสอบ...';$('resultBody').innerHTML='';lastResultSig='';}
+  try{
+    const d=await api({action:silent?'getLiveResults':'getResults',examId});
+    if(!d||d.ok===false)throw new Error(d?.error||'โหลดข้อมูลไม่ได้');
+    $('resultSummary').textContent=`${d.exam.title} • ผู้เข้าสอบ ${d.rows.length} คน • คะแนนเต็ม ${d.exam.maxPoints} คะแนน${silent?' • อัปเดตอัตโนมัติ':''}`;
+    renderResultRows(d);
+  }catch(e){if(!silent)$('resultSummary').textContent='โหลดผลสอบไม่ได้: '+e.message}
+  finally{resultLiveBusy=false}
+}
+function startResultLive(){
+  clearInterval(resultLiveTimer);
+  resultLiveTimer=setInterval(()=>{if(res.classList.contains('open'))loadResults(true)},5000);
+}
+$('resultRefresh').onclick=()=>loadResults(false);
+$('resultExamSelect').onchange=()=>{lastResultSig='';loadResults(false);$('resultDetail').innerHTML=''};
 startResultLive();
 
 $('showAnswerKey').onclick=async()=>{

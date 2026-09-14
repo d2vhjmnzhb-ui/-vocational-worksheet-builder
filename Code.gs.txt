@@ -10,6 +10,7 @@ function doGet(e) {
       case "getTeacherExam": result = getTeacherExam(p); break;
       case "listExams": result = listExams(); break;
       case "getResults": result = getResults(p); break;
+      case "getLiveResults": result = getLiveResults(p); break;
       case "getAttemptDetail": result = getAttemptDetail(p); break;
       case "saveGrades": result = saveGrades(p); break;
       case "startAttempt": result = startAttempt(p); break;
@@ -262,6 +263,23 @@ function getResults(b) {
   return {ok:true,apiVersion:"V46",exam:{examId:exam.examId,title:exam.title,maxPoints:maxPoints(exam.questions)},rows};
 }
 
+
+function getLiveResults(b) {
+  const exam=findExam(b.examId); if(!exam)return fail("INVALID_EXAM");
+  const sh=attemptsSheet(),last=sh.getLastRow(),rows=[];
+  if(last>1){
+    const data=sh.getRange(2,1,last-1,16).getValues();
+    for(let i=0;i<data.length;i++) if(String(data[i][1])===String(b.examId)) {
+      rows.push({
+        attemptId:String(data[i][0]),studentId:String(data[i][2]),studentName:String(data[i][3]),status:String(data[i][4]),
+        autoScore:Number(data[i][7]||0),manualScore:Number(data[i][13]||0),finalScore:Number(data[i][14]||data[i][7]||0),
+        leaves:Number(data[i][9]||0)
+      });
+    }
+  }
+  return {ok:true,apiVersion:"V47",exam:{examId:exam.examId,title:exam.title,maxPoints:maxPoints(exam.questions)},rows};
+}
+
 function getAttemptDetail(b) {
   const a=findAttempt(b.attemptId); if(!a)return fail("ATTEMPT_NOT_FOUND");
   const exam=findExam(a.data[1]); if(!exam)return fail("INVALID_EXAM");
@@ -287,7 +305,13 @@ function saveGrades(b) {
 
 function logEvent(b) {
   const sh=getSheet("Events",["timestamp","examId","attemptId","event","leaveCount"]);
-  const lock=LockService.getScriptLock(); if(!lock.tryLock(5000))return {ok:true,skipped:true};
-  try{sh.appendRow([new Date(),b.examId||"",b.attemptId||"",b.event||"",Number(b.leaveCount||0)])}finally{lock.releaseLock()}
+  const lock=LockService.getScriptLock(); if(!lock.tryLock(2500))return {ok:true,skipped:true};
+  try{
+    const count=Number(b.leaveCount||0);
+    sh.appendRow([new Date(),b.examId||"",b.attemptId||"",b.event||"",count]);
+    // V47: เขียนยอดเหตุการณ์ล่าสุดลง Attempts โดยตรง เพื่อให้หน้าครูอ่านแบบเบาและเร็ว
+    const a=findAttempt(b.attemptId);
+    if(a && count>Number(a.data[9]||0)) a.sheet.getRange(a.row,10).setValue(count);
+  }finally{lock.releaseLock()}
   return {ok:true};
 }
