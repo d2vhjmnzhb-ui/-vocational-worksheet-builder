@@ -104,13 +104,27 @@ function addButtons(){
 const pub=document.createElement('div');pub.className='exam-backdrop';pub.innerHTML=`<div class="exam-modal">
 <h2>เผยแพร่เป็นข้อสอบออนไลน์</h2><p class="exam-muted" id="examDetected"></p>
 <div class="exam-field"><label>ชื่อชุดข้อสอบ</label><input id="onlineExamTitle"></div>
-<div class="exam-grid"><div class="exam-field"><label>เวลาสอบ (นาที)</label><input id="onlineExamMinutes" type="number" min="1" max="300" value="50"></div><div class="exam-field"><label>ออกจากหน้าสอบครบกี่ครั้งให้ส่งอัตโนมัติ</label><input id="onlineExamMaxLeave" type="number" min="1" max="20" value="3"></div></div>
+<div class="exam-grid"><div class="exam-field"><label>เวลาสอบ (นาที)</label><input id="onlineExamMinutes" type="number" min="1" max="300" value="50"></div><div class="exam-field"><label>เหตุการณ์เสี่ยงครบกี่ครั้ง</label><input id="onlineExamMaxLeave" type="number" min="1" max="20" value="3"></div></div>
+<div class="exam-grid"><div class="exam-field"><label>โหมดการสอบ</label><select id="onlineExamGuard"><option value="guard" selected>โหมดคุมสอบ (แนะนำ)</option><option value="normal">โหมดปกติ</option></select></div><div class="exam-field"><label>เมื่อพบพฤติกรรมเสี่ยงครบจำนวน</label><select id="onlineExamRiskAction"><option value="warn" selected>บันทึกและเตือน — ให้ครูตรวจภายหลัง</option><option value="submit">ส่งข้อสอบอัตโนมัติ</option></select></div></div>
+<div id="examGuardOptions" style="padding:12px;border:1px solid #dbeafe;background:#f8fbff;border-radius:12px;margin:8px 0 12px">
+  <div style="font-weight:800;margin-bottom:8px">การป้องกันในโหมดคุมสอบ</div>
+  <div class="exam-grid">
+    <div class="exam-field"><label>สุ่มลำดับคำถาม</label><select id="onlineExamShuffleQ"><option value="yes" selected>สุ่ม</option><option value="no">ไม่สุ่ม</option></select></div>
+    <div class="exam-field"><label>สุ่มลำดับตัวเลือก</label><select id="onlineExamShuffleC"><option value="yes" selected>สุ่ม</option><option value="no">ไม่สุ่ม</option></select></div>
+  </div>
+  <div class="exam-grid">
+    <div class="exam-field"><label>ขอแสดงเต็มจอเมื่อเริ่มสอบ</label><select id="onlineExamFullscreen"><option value="yes" selected>เปิด</option><option value="no">ปิด</option></select></div>
+    <div class="exam-field"><label>ตรวจ Split Screen / สลับโฟกัส</label><select id="onlineExamSplit"><option value="yes" selected>ตรวจ</option><option value="no">ไม่ตรวจ</option></select></div>
+  </div>
+  <div class="exam-muted">ระบบตรวจได้แบบ best-effort ตามที่เบราว์เซอร์อนุญาต จึงบันทึกเป็นสัญญาณให้ครูตรวจ ไม่ถือว่าเป็นหลักฐานโกงโดยอัตโนมัติ</div>
+</div>
 <div class="exam-grid"><div class="exam-field"><label>แสดงคะแนนหลังส่ง</label><select id="onlineExamShowScore"><option value="yes">แสดง</option><option value="no">ไม่แสดง</option></select></div><div class="exam-field"><label>การเข้าสอบ</label><select id="onlineExamOneAttempt"><option value="yes">1 ครั้งต่อรหัสนักเรียน</option><option value="no">อนุญาตหลายครั้ง</option></select></div></div>
 <div class="exam-field"><label>เฉลยหลังส่งข้อสอบ</label><select id="onlineExamAllowReview"><option value="no">ไม่แสดง</option><option value="yes">ให้นักเรียนดูเฉลย/แนวคำตอบหลังส่ง</option></select></div>
 <div class="exam-result" id="onlineExamResult"></div>
 <div class="exam-actions"><button class="exam-cancel" id="pubClose">ปิด</button><button class="exam-confirm" id="pubGo">เผยแพร่</button></div>
 </div>`;document.body.appendChild(pub);
 $('pubClose').onclick=()=>pub.classList.remove('open');pub.onclick=e=>{if(e.target===pub)pub.classList.remove('open')};
+$('onlineExamGuard').onchange=()=>{$('examGuardOptions').style.display=$('onlineExamGuard').value==='guard'?'block':'none';};
 
 function openPublish(){
   const qs=readQuestions(), mcq=qs.filter(x=>x.type==='mcq').length, text=qs.length-mcq;
@@ -138,9 +152,19 @@ $('pubGo').onclick=async()=>{
       questions
     });
     const finalExamId=d?.exam?.examId||d?.examId||examId;
-    const base=new URL(STUDENT_EXAM_URL,location.href).href;
-    const link=base+(base.includes('?')?'&':'?')+'exam='+encodeURIComponent(finalExamId);
-    result.innerHTML=`<b>เผยแพร่สำเร็จ</b><br>รหัสข้อสอบ: <b>${esc(finalExamId)}</b><br><a href="${esc(link)}" target="_blank">เปิดลิงก์นักเรียน</a><br><button class="exam-copy" id="copyExamLink">คัดลอกลิงก์</button>`;
+    const u=new URL(STUDENT_EXAM_URL,location.href);
+    u.searchParams.set('exam',finalExamId);
+    if($('onlineExamGuard').value==='guard'){
+      u.searchParams.set('guard','1');
+      u.searchParams.set('shuffleQ',$('onlineExamShuffleQ').value==='yes'?'1':'0');
+      u.searchParams.set('shuffleC',$('onlineExamShuffleC').value==='yes'?'1':'0');
+      u.searchParams.set('full',$('onlineExamFullscreen').value==='yes'?'1':'0');
+      u.searchParams.set('split',$('onlineExamSplit').value==='yes'?'1':'0');
+      u.searchParams.set('risk',$('onlineExamRiskAction').value);
+    }
+    const link=u.href;
+    const guardLabel=$('onlineExamGuard').value==='guard'?'<br><span style="color:#166534">โหมดคุมสอบ: สุ่มข้อ/ช้อยส์ + ตรวจออกจากหน้า/Split Screen ตามค่าที่เลือก</span>':'';
+    result.innerHTML=`<b>เผยแพร่สำเร็จ</b><br>รหัสข้อสอบ: <b>${esc(finalExamId)}</b>${guardLabel}<br><a href="${esc(link)}" target="_blank">เปิดลิงก์นักเรียน</a><br><button class="exam-copy" id="copyExamLink">คัดลอกลิงก์</button>`;
     $('copyExamLink').onclick=async()=>{await navigator.clipboard.writeText(link);$('copyExamLink').textContent='คัดลอกแล้ว ✓'};
   }catch(e){result.style.display='block';result.textContent='ไม่สำเร็จ: '+e.message}
   finally{btn.disabled=false;btn.textContent='เผยแพร่'}
@@ -154,7 +178,7 @@ const res=document.createElement('div');res.className='exam-backdrop';res.innerH
   <button class="exam-secondary exam-mini" id="showAnswerKey">ดูเฉลยชุดนี้</button>
 </div>
 <div id="resultSummary" class="exam-muted"></div>
-<div class="exam-table-wrap"><table class="exam-table"><thead><tr><th>รหัส</th><th>ชื่อ–สกุล</th><th>สถานะ</th><th>คะแนนปรนัย</th><th>คะแนนถามตอบ</th><th>คะแนนรวม</th><th>ออกจากหน้า</th><th></th></tr></thead><tbody id="resultBody"></tbody></table></div>
+<div class="exam-table-wrap"><table class="exam-table"><thead><tr><th>รหัส</th><th>ชื่อ–สกุล</th><th>สถานะ</th><th>คะแนนปรนัย</th><th>คะแนนถามตอบ</th><th>คะแนนรวม</th><th>เหตุการณ์เสี่ยง</th><th></th></tr></thead><tbody id="resultBody"></tbody></table></div>
 <div class="exam-detail" id="resultDetail"></div>
 <div class="exam-actions"><button class="exam-cancel" id="resClose">ปิด</button></div>
 </div>`;document.body.appendChild(res);

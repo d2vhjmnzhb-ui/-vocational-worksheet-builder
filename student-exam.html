@@ -115,6 +115,8 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 .textAnswer:focus{border-color:#6aa7ff;box-shadow:0 0 0 3px #dfeeff}
 .textHint{font-size:.8rem;color:#74889e;font-weight:800;margin-top:7px}
 .pendingScore{margin-top:10px;background:#fff8e7;border:1px solid #ffe09a;color:#805600;border-radius:13px;padding:11px;font-weight:900}
+
+.proctorBanner{display:none;margin:10px 0;padding:10px 12px;border-radius:12px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-weight:800;font-size:.9rem}.proctorBanner.show{display:flex;gap:8px;align-items:center}.riskFlash{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:99999;background:#991b1b;color:#fff;padding:11px 16px;border-radius:999px;box-shadow:0 10px 35px #0004;font-weight:800;max-width:92vw;text-align:center}.proctorLock{user-select:none;-webkit-user-select:none}
 </style>
 </head>
 <body>
@@ -146,6 +148,7 @@ body{padding-bottom:env(safe-area-inset-bottom)}
   </section>
 
   <section id="examArea" class="hidden examShell">
+  <div id="proctorBanner" class="proctorBanner">🛡️ โหมดคุมสอบเปิดอยู่ • ระบบจะบันทึกการออกจากหน้า การสลับโฟกัส และการเปลี่ยนขนาดหน้าต่างผิดปกติ</div>
     <div class="studentTop">
       <div class="infoChip">
         <div class="infoLabel">ผู้เข้าสอบ</div>
@@ -224,6 +227,16 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 <script>
 const EXAM_API_URL='https://script.google.com/macros/s/AKfycbxunyrg12A_Fv4fM-6GZZ4rVXz07-EN_rRGsTbBQZmsLcjFnLeLgNX3t-vyHH8d7Xfqgw/exec';
 const params=new URLSearchParams(location.search);const examId=params.get('exam');const PREVIEW_MODE=params.get('preview')==='1';
+const PROCTOR={
+  enabled:params.get('guard')==='1',
+  shuffleQ:params.get('shuffleQ')==='1',
+  shuffleC:params.get('shuffleC')==='1',
+  fullscreen:params.get('full')==='1',
+  split:params.get('split')==='1',
+  riskAction:params.get('risk')==='submit'?'submit':'warn'
+};
+let sourceQuestions=null,proctorBaseline=null,resizeTimer=null,orientationGraceUntil=0;
+const riskLast={};
 let exam=null,attemptId='',endServerMs=0,startServerMs=0,totalDurationMs=0,timerId=null,started=false,submitting=false,leaveCount=0,lastLeaveAt=0,currentQuestion=0;
 const answers={};
 const startRequestId='SR_'+Date.now()+'_'+Math.random().toString(36).slice(2);
@@ -288,6 +301,59 @@ async function api(p,timeout=25000,retries=2){
 }
 
 
+function seedFromText(text){let h=2166136261>>>0;for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function rng32(seed){return function(){seed|=0;seed=(seed+0x6D2B79F5)|0;let t=seed;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
+function shuffled(arr,rng){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function prepareExamForStudent(studentId){
+  if(!exam||!Array.isArray(exam.questions))return;
+  if(!sourceQuestions)sourceQuestions=exam.questions.map((q,i)=>({...q,_origIndex:i}));
+  const rng=rng32(seedFromText(String(examId||'')+'|'+String(studentId||'')));
+  let qs=sourceQuestions.map(q=>({...q}));
+  if(PROCTOR.shuffleQ)qs=shuffled(qs,rng);
+  if(PROCTOR.shuffleC)qs=qs.map(q=>q.type==='text'?q:{...q,_choiceOrder:shuffled(['ก','ข','ค','ง'].filter(k=>Object.prototype.hasOwnProperty.call(q.choices||{},k)),rng)});
+  exam.questions=qs;
+}
+function captureProctorBaseline(){
+  proctorBaseline={w:window.innerWidth,h:window.innerHeight,sw:screen.width,sh:screen.height,at:Date.now()};
+}
+function flashRisk(msg){
+  const old=document.querySelector('.riskFlash');if(old)old.remove();
+  const d=document.createElement('div');d.className='riskFlash';d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),2800);
+}
+async function registerRisk(reason,label){
+  if(PREVIEW_MODE||!started||submitting)return;
+  const now=Date.now();if(now-(riskLast[reason]||0)<2500)return;riskLast[reason]=now;
+  leaveCount++;stats();
+  api({action:'logEvent',examId,attemptId,event:reason,leaveCount}).catch(()=>{});
+  flashRisk(`ตรวจพบ: ${label} • ครั้งที่ ${leaveCount}/${exam.maxLeave}`);
+  if(PROCTOR.enabled && PROCTOR.riskAction==='submit' && leaveCount>=exam.maxLeave){await submitExam(true,'พฤติกรรมเสี่ยงครบจำนวนที่กำหนด');}
+}
+function requestExamFullscreen(){
+  if(!PROCTOR.enabled||!PROCTOR.fullscreen)return;
+  const el=document.documentElement;const fn=el.requestFullscreen||el.webkitRequestFullscreen;
+  try{const r=fn&&fn.call(el);if(r&&r.catch)r.catch(()=>{})}catch(_){ }
+}
+function startProctorWatch(){
+  if(!PROCTOR.enabled)return;
+  $('proctorBanner')?.classList.add('show');document.body.classList.add('proctorLock');
+  setTimeout(captureProctorBaseline,700);
+}
+function checkSplitResize(){
+  if(!PROCTOR.enabled||!PROCTOR.split||!started||!proctorBaseline||Date.now()<orientationGraceUntil)return;
+  const active=document.activeElement;const typing=active&&/INPUT|TEXTAREA|SELECT/.test(active.tagName);
+  const w=window.innerWidth,h=window.innerHeight,b=proctorBaseline;
+  const widthShrunk=w < b.w*.72;
+  const heightShrunk=!typing && h < b.h*.55;
+  if(widthShrunk||heightShrunk)registerRisk('viewport_shrink','ขนาดหน้าต่างเปลี่ยนผิดปกติ / อาจแบ่งหน้าจอ');
+}
+window.addEventListener('resize',()=>{if(!PROCTOR.enabled||!PROCTOR.split)return;clearTimeout(resizeTimer);resizeTimer=setTimeout(checkSplitResize,1100)});
+window.addEventListener('orientationchange',()=>{orientationGraceUntil=Date.now()+2500;setTimeout(captureProctorBaseline,1800)});
+window.addEventListener('blur',()=>{if(PROCTOR.enabled&&PROCTOR.split&&started&&!document.hidden)registerRisk('window_blur','สลับโฟกัสออกจากหน้าข้อสอบ')});
+document.addEventListener('fullscreenchange',()=>{if(PROCTOR.enabled&&PROCTOR.fullscreen&&started&&!document.fullscreenElement)registerRisk('fullscreen_exit','ออกจากโหมดเต็มจอ')});
+document.addEventListener('webkitfullscreenchange',()=>{if(PROCTOR.enabled&&PROCTOR.fullscreen&&started&&!document.webkitFullscreenElement)registerRisk('fullscreen_exit','ออกจากโหมดเต็มจอ')});
+document.addEventListener('copy',e=>{if(PROCTOR.enabled&&started){e.preventDefault();flashRisk('โหมดคุมสอบไม่อนุญาตให้คัดลอกข้อความ')}});
+document.addEventListener('contextmenu',e=>{if(PROCTOR.enabled&&started)e.preventDefault()});
+
 function setupPreview(payload){
   exam=payload||{};
   exam.title=exam.title||'ตัวอย่างข้อสอบออนไลน์';
@@ -314,8 +380,8 @@ async function loadExam(){
   try{
     if(!examId)throw Error('ลิงก์ไม่มีรหัสข้อสอบ');
     const d=await api({action:'getExam',examId},20000,2);
-    exam=d.exam;
-    $('examInfo').textContent=`${exam.title} • ${exam.questions.length} ข้อ • ${exam.duration} นาที`;
+    exam=d.exam;sourceQuestions=Array.isArray(exam.questions)?exam.questions.map((q,i)=>({...q,_origIndex:i})):null;
+    $('examInfo').textContent=`${exam.title} • ${exam.questions.length} ข้อ • ${exam.duration} นาที${PROCTOR.enabled?' • โหมดคุมสอบ':''}`;
     $('loginFields').classList.remove('hidden');
   }catch(e){
     $('loadError').textContent=e.message;
@@ -336,6 +402,7 @@ $('startBtn').onclick=async()=>{
   if(!exam||started)return;
   const studentName=$('studentName').value.trim(),studentId=$('studentId').value.trim();
   if(!studentName||!studentId){alert('กรุณากรอกชื่อและรหัสนักเรียน');return}
+  requestExamFullscreen();
   const btn=$('startBtn');
   btn.disabled=true;
   btn.classList.add('is-loading');
@@ -350,6 +417,7 @@ $('startBtn').onclick=async()=>{
     btn.classList.add('is-success');
     btn.textContent='เริ่มสอบแล้ว ✓';
     await new Promise(r=>setTimeout(r,250));
+    prepareExamForStudent(studentId);
     started=true;
     $('studentTopName').textContent=studentName;
     $('studentTopId').textContent=studentId;
@@ -360,6 +428,7 @@ $('startBtn').onclick=async()=>{
     stats();
     tick();
     timerId=setInterval(tick,1000);
+    startProctorWatch();
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(e){
     btn.classList.remove('is-loading','is-success');
@@ -386,10 +455,12 @@ function renderQuestion(){
       stats();
     };
   }else{
-    $('choicesWrap').innerHTML=['ก','ข','ค','ง'].map(k=>`
+    const displayLetters=['ก','ข','ค','ง'];
+    const order=(q._choiceOrder&&q._choiceOrder.length?q._choiceOrder:['ก','ข','ค','ง']).filter(k=>Object.prototype.hasOwnProperty.call(q.choices||{},k));
+    $('choicesWrap').innerHTML=order.map((originalKey,pos)=>`
       <label class="choice">
-        <input type="radio" name="currentQ" value="${k}" ${answers[currentQuestion]===k?'checked':''}>
-        <span><span class="choiceLetter">${k}.</span> ${esc((q.choices||{})[k]||'')}</span>
+        <input type="radio" name="currentQ" value="${originalKey}" ${answers[currentQuestion]===originalKey?'checked':''}>
+        <span><span class="choiceLetter">${displayLetters[pos]||originalKey}.</span> ${esc((q.choices||{})[originalKey]||'')}</span>
       </label>`).join('');
     document.querySelectorAll('input[name=currentQ]').forEach(r=>r.onchange=e=>{
       answers[currentQuestion]=e.target.value;
@@ -479,12 +550,9 @@ function tick(){
 
 async function leave(reason){
   if(PREVIEW_MODE||!started||submitting)return;
-  const n=Date.now();
-  if(n-lastLeaveAt<1500)return;
-  lastLeaveAt=n;
-  leaveCount++;
-  stats();
-  api({action:'logEvent',examId,attemptId,event:reason,leaveCount}).catch(()=>{});
+  const n=Date.now();if(n-lastLeaveAt<1500)return;lastLeaveAt=n;
+  if(PROCTOR.enabled){await registerRisk(reason,'ออกจากหน้าข้อสอบ');return;}
+  leaveCount++;stats();api({action:'logEvent',examId,attemptId,event:reason,leaveCount}).catch(()=>{});
   if(leaveCount>=exam.maxLeave)await submitExam(true,'ออกจากหน้าสอบครบจำนวนที่กำหนด');
   else alert(`ตรวจพบการออกจากหน้าสอบ ครั้งที่ ${leaveCount}/${exam.maxLeave}`);
 }
@@ -514,7 +582,9 @@ async function submitExam(auto,reason){
   btn.textContent='กำลังส่งคำตอบ...';
   setMascot('sending','กำลังบันทึกคำตอบครับ กรุณารอสักครู่… ⏳');
   try{
-    const d=await api({action:'submitAttempt',examId,attemptId,answersJson:JSON.stringify(answers),leaveCount,reason},30000,3);
+    const answersForServer={};
+    (exam.questions||[]).forEach((q,displayIndex)=>{answersForServer[q._origIndex??displayIndex]=answers[displayIndex]??''});
+    const d=await api({action:'submitAttempt',examId,attemptId,answersJson:JSON.stringify(answersForServer),leaveCount,reason},30000,3);
     btn.classList.remove('is-loading');
     btn.classList.add('is-success');
     btn.textContent='ส่งเรียบร้อย ✓';
