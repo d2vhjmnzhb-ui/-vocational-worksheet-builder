@@ -5,6 +5,9 @@ function doGet(e) {
     const p = (e && e.parameter) || {};
     let result;
     switch (p.action || "") {
+      case "gameStart": result=gameStart(p); break;
+      case "gameSubmit": result=gameSubmit(p); break;
+      case "gameRanks": result=gameRanks(); break;
       case "": result = {ok:true,message:"Exam API ready"}; break;
       case "getExam": result = getExam(p); break;
       case "getTeacherExam": result = getTeacherExam(p); break;
@@ -180,6 +183,8 @@ function deleteExam(b) {
 function attemptResponse(row,exam) {
   const start=row[5] instanceof Date?row[5]:new Date(row[5]);
   const end=new Date(start.getTime()+exam.duration*60000);
+  // V52: attempt ที่หมดเวลาแล้วห้ามคืนค่าให้หน้าเด็กไป submit ทันทีแบบเงียบ
+  if(end.getTime()<=Date.now()) return fail('ATTEMPT_EXPIRED');
   return {ok:true,attemptId:row[0],startMs:start.getTime(),endMs:end.getTime(),resumed:true};
 }
 
@@ -323,4 +328,31 @@ function logEvent(b) {
     }
   }finally{lock.releaseLock()}
   return {ok:true};
+}
+
+// Motorcycle game: separate sheets preserve all exam submissions.
+const GAME_KEY = [1,1,2,1,1,1,1,1,2,1,0,3,1,2,0,3,1,2,0,3];
+function gameSheet(){return getSheet('GameAttempts',['attemptId','name','startedAt','finishedAt','correct','seconds','answersJson']);}
+function gameStart(b){
+  const first=String(b.firstName||'').trim(),last=String(b.lastName||'').trim();
+  if(!first||!last||first.length>60||last.length>60||/[\x00-\x1f=<>]/.test(first+last))return {ok:false,error:'กรุณากรอกชื่อจริงและนามสกุลให้ถูกต้อง'};
+  const lock=LockService.getScriptLock();lock.waitLock(15000);
+  try{const id=Utilities.getUuid();gameSheet().appendRow([id,first+' '+last,new Date().toISOString(),'','','','']);return {ok:true,attemptId:id};}finally{lock.releaseLock();}
+}
+function gameSubmit(b){
+  let answers;try{answers=JSON.parse(b.answersJson||'[]');}catch(e){return fail('INVALID_ANSWERS');}
+  if(!Array.isArray(answers)||answers.length!==20||answers.some(a=>!Number.isInteger(a)||a< -1||a>3))return fail('INVALID_ANSWERS');
+  const lock=LockService.getScriptLock();lock.waitLock(15000);
+  try{const sh=gameSheet(),rows=sh.getDataRange().getValues();const i=rows.findIndex((r,j)=>j>0&&String(r[0])===String(b.attemptId));if(i<1)return fail('ATTEMPT_NOT_FOUND');
+    if(rows[i][3])return {ok:true,correct:Number(rows[i][4]),seconds:Number(rows[i][5])};
+    const seconds=Math.max(1,Math.round((Date.now()-new Date(rows[i][2]).getTime())/1000));
+    const correct=answers.reduce((n,a,j)=>n+(a===GAME_KEY[j]?1:0),0);
+    sh.getRange(i+1,4,1,4).setValues([[new Date().toISOString(),correct,seconds,JSON.stringify(answers)]]);
+    return {ok:true,correct:correct,seconds:seconds};
+  }finally{lock.releaseLock();}
+}
+function gameRanks(){
+  const rows=gameSheet().getDataRange().getValues().slice(1).filter(r=>r[3]);const best=Object.create(null);
+  rows.forEach(r=>{const entry={name:String(r[1]),correct:Number(r[4]),seconds:Number(r[5])};const key=entry.name.normalize('NFC').replace(/\s+/g,' ').trim();const old=best[key];if(!old||entry.correct>old.correct||(entry.correct===old.correct&&entry.seconds<old.seconds))best[key]=entry;});
+  return {ok:true,rows:Object.keys(best).map(k=>best[k]).sort((a,b)=>b.correct-a.correct||a.seconds-b.seconds||a.name.localeCompare(b.name)).slice(0,100)};
 }
