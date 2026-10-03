@@ -1,0 +1,69 @@
+V55 Validation Report — 2026-10-03
+
+SOURCE
+Input: worksheet-builder-v54-assignments-gradebook(1).zip (47 files)
+All original files remain in the package. No older source was used.
+Original files modified: assignments.js, assignments.css, Code.gs.txt,
+student-work.html, index.html, teacher-dashboard.js.
+student-exam.html is byte-for-byte identical to the supplied V54 source.
+Slide Studio, AI import, exam-publish.js, original storage keys and asset DB unchanged.
+
+ARCHITECTURE OBSERVED
+Static HTML/JS/CSS on GitHub Pages, no build step.
+index.html: worksheet base + modules for AI/quality, Slide Studio, teacher UI,
+exam publishing/results, assignments.
+student-exam.html: standalone exam, JSONP API, V53 single-use submit permit.
+student-work.html: standalone student assignments (no teacher modules).
+Apps Script: Exams, Attempts, Events plus Classes, Works, Submissions.
+Browser localStorage: vocWorksheetDraft, vocOnlineExamBankV30,
+vocOnlineExamPreviewV30, vocHiddenExamResultsV51, vocSlidesV41, v54class, swid.
+V55 adds work-api.js shared JSONP/POST receipt transport and private Drive uploads.
+
+V54 AUDIT
+Existing backend implements class/work create, text/link submit, manual score function,
+and dashboard joining exam Attempts. These had real Sheets writes but no reliable
+write acknowledgement in browser. Teacher UI did not expose manual grading.
+Work pane had no mode visibility CSS. Submission update incorrectly marked an
+ungraded resubmission as graded and retained stale scores. Score integration used
+raw exam scores without scaling and || fallback could override a valid zero.
+V54 student view used student ID alone, allowing another ID to be queried.
+No file uploads, QR, roster editor or student detail grading UI existed.
+Live results read 16 columns while accessing risk fields in columns 17/18.
+
+CHECKS EXECUTED
+1. Node syntax parse: all .js files, Code.gs.txt, js.txt and HTML inline scripts passed.
+2. HTML parser: index.html, student-work.html and student-exam.html:
+   no duplicate IDs, no missing local script/stylesheet files.
+3. 25 backend checks passed using actual Code.gs.txt in Node VM with simulated
+   SpreadsheetApp/DriveApp/LockService/CacheService/PropertiesService.
+   Covered auth, duplicate roster, deadlines, empty/unsafe submissions,
+   private attachment setting, response isolation, bounds/zero grades,
+   resubmission resets, stale revisions, receipt replay after cache loss,
+   exam validation/scaling/latest completed attempt, roster preservation,
+   risk columns and doGet/doPost routing.
+4. Chromium browser flow with actual website JS and actual backend functions
+   under simulated services; all external API calls intercepted, no live records changed:
+   - teacher connects, creates classroom and publishes assignment
+   - student authenticates, sends text + PDF, waits for server receipt
+   - teacher opens submission and records grade + feedback
+   - student refreshes and sees 8/10, 80%, feedback
+   - no teacher navigation in student-work
+   - QR canvas renders locally
+   - worksheet/work navigation works in both directions
+   - teacher + student viewports 390x844, 768x1024, 1024x768: no page-level overflow
+     (gradebook itself scrolls horizontally by design)
+   - screenshots captured and phone teacher/student screenshots visually inspected
+   - HARD SUBMIT GATE rejects unknown source; blur/scroll/resize do not submit;
+     risk=warn does not arm submission; same risk event deduplicates
+   - no uncaught page JavaScript exceptions in exercised flows
+5. Visual inspection found display:block overriding a hidden exam-code label;
+   corrected with a scoped [hidden] rule.
+
+NOT VERIFIED ON LIVE SERVICES/HARDWARE
+No deployment made to user's GitHub, Google Apps Script, Google Sheet or Drive.
+Real Apps Script permissions, quotas, Drive opening/sharing policy and browser CORS
+must be smoke-tested after deployment. Simulated lock/storage tests are not a
+real concurrent-load test. No physical iPad/Android keyboard, split screen, rotation
+or real-device camera/upload test was performed. QR canvas generation tested;
+physical camera scanning was not tested. Existing PDF/PPTX exports were preserved,
+not exhaustively regression-tested. Anti-cheat logic was preserved, not rewritten.
