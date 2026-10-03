@@ -5,9 +5,6 @@ function doGet(e) {
     const p = (e && e.parameter) || {};
     let result;
     switch (p.action || "") {
-      case "gameStart": result=gameStart(p); break;
-      case "gameSubmit": result=gameSubmit(p); break;
-      case "gameRanks": result=gameRanks(); break;
       case "": result = {ok:true,message:"Exam API ready"}; break;
       case "getExam": result = getExam(p); break;
       case "getTeacherExam": result = getTeacherExam(p); break;
@@ -25,6 +22,10 @@ function doGet(e) {
           leaveCount:Number(p.leaveCount||0)
         })); break;
       case "logEvent": result = logEvent(p); break;
+      case "listClasses": result=listClasses(); break;
+      case "listWorks": result=listWorks(p); break;
+      case "getClassDashboard": result=getClassDashboard(p); break;
+      case "getStudentWork": result=getStudentWork(p); break;
       default: result = fail("UNKNOWN_ACTION"); break;
     }
     return output(result,p.callback);
@@ -42,6 +43,10 @@ function doPost(e) {
       case "submitAttempt": result=submitAttempt(b); break;
       case "setExamActive": result=setExamActive(b); break;
       case "deleteExam": result=deleteExam(b); break;
+      case "createClass": result=createClass(b); break;
+      case "createWork": result=createWork(b); break;
+      case "submitWork": result=submitWork(b); break;
+      case "saveWorkGrade": result=saveWorkGrade(b); break;
       default: result=fail("UNKNOWN_ACTION");
     }
     return output(result);
@@ -330,29 +335,16 @@ function logEvent(b) {
   return {ok:true};
 }
 
-// Motorcycle game: separate sheets preserve all exam submissions.
-const GAME_KEY = [1,1,2,1,1,1,1,1,2,1,0,3,1,2,0,3,1,2,0,3];
-function gameSheet(){return getSheet('GameAttempts',['attemptId','name','startedAt','finishedAt','correct','seconds','answersJson']);}
-function gameStart(b){
-  const first=String(b.firstName||'').trim(),last=String(b.lastName||'').trim();
-  if(!first||!last||first.length>60||last.length>60||/[\x00-\x1f=<>]/.test(first+last))return {ok:false,error:'กรุณากรอกชื่อจริงและนามสกุลให้ถูกต้อง'};
-  const lock=LockService.getScriptLock();lock.waitLock(15000);
-  try{const id=Utilities.getUuid();gameSheet().appendRow([id,first+' '+last,new Date().toISOString(),'','','','']);return {ok:true,attemptId:id};}finally{lock.releaseLock();}
-}
-function gameSubmit(b){
-  let answers;try{answers=JSON.parse(b.answersJson||'[]');}catch(e){return fail('INVALID_ANSWERS');}
-  if(!Array.isArray(answers)||answers.length!==20||answers.some(a=>!Number.isInteger(a)||a< -1||a>3))return fail('INVALID_ANSWERS');
-  const lock=LockService.getScriptLock();lock.waitLock(15000);
-  try{const sh=gameSheet(),rows=sh.getDataRange().getValues();const i=rows.findIndex((r,j)=>j>0&&String(r[0])===String(b.attemptId));if(i<1)return fail('ATTEMPT_NOT_FOUND');
-    if(rows[i][3])return {ok:true,correct:Number(rows[i][4]),seconds:Number(rows[i][5])};
-    const seconds=Math.max(1,Math.round((Date.now()-new Date(rows[i][2]).getTime())/1000));
-    const correct=answers.reduce((n,a,j)=>n+(a===GAME_KEY[j]?1:0),0);
-    sh.getRange(i+1,4,1,4).setValues([[new Date().toISOString(),correct,seconds,JSON.stringify(answers)]]);
-    return {ok:true,correct:correct,seconds:seconds};
-  }finally{lock.releaseLock();}
-}
-function gameRanks(){
-  const rows=gameSheet().getDataRange().getValues().slice(1).filter(r=>r[3]);const best=Object.create(null);
-  rows.forEach(r=>{const entry={name:String(r[1]),correct:Number(r[4]),seconds:Number(r[5])};const key=entry.name.normalize('NFC').replace(/\s+/g,' ').trim();const old=best[key];if(!old||entry.correct>old.correct||(entry.correct===old.correct&&entry.seconds<old.seconds))best[key]=entry;});
-  return {ok:true,rows:Object.keys(best).map(k=>best[k]).sort((a,b)=>b.correct-a.correct||a.seconds-b.seconds||a.name.localeCompare(b.name)).slice(0,100)};
-}
+// ===== V54 ASSIGNMENTS & GRADEBOOK =====
+function classesSheet(){return getSheet('Classes',['classId','className','subject','code','studentsJson','createdAt']);}
+function worksSheet(){return getSheet('Works',['workId','classId','title','type','maxScore','dueAt','examId','active','createdAt']);}
+function submissionsSheet(){return getSheet('Submissions',['submissionId','workId','classId','studentId','studentName','answerText','answerUrl','submittedAt','score','feedback','status']);}
+function _rows(sh){const v=sh.getDataRange().getValues();if(v.length<2)return [];const h=v[0];return v.slice(1).map((r,i)=>Object.fromEntries(h.map((x,j)=>[x,r[j]]))).map((o,i)=>Object.assign(o,{_row:i+2}));}
+function createClass(b){const id=newId('CL');classesSheet().appendRow([id,String(b.className||''),String(b.subject||''),String(b.code||''),JSON.stringify(b.students||[]),new Date().toISOString()]);return {ok:true,classId:id};}
+function listClasses(){return {ok:true,classes:_rows(classesSheet()).map(x=>({classId:x.classId,className:x.className,subject:x.subject,code:x.code,students:JSON.parse(x.studentsJson||'[]')}))};}
+function createWork(b){if(!b.classId||!b.title)return fail('BAD_REQUEST');const id=newId('WK');worksSheet().appendRow([id,b.classId,String(b.title),String(b.type||'submission'),Number(b.maxScore||10),String(b.dueAt||''),String(b.examId||''),true,new Date().toISOString()]);return {ok:true,workId:id};}
+function listWorks(p){let a=_rows(worksSheet());if(p.classId)a=a.filter(x=>String(x.classId)===String(p.classId));return {ok:true,works:a.map(x=>({workId:x.workId,classId:x.classId,title:x.title,type:x.type,maxScore:Number(x.maxScore||0),dueAt:x.dueAt,examId:x.examId,active:bool(x.active,true)}))};}
+function submitWork(b){if(!b.workId||!b.studentId)return fail('BAD_REQUEST');const sh=submissionsSheet(), rows=_rows(sh);const old=rows.find(x=>String(x.workId)===String(b.workId)&&String(x.studentId)===String(b.studentId));const vals=[old?old.submissionId:newId('SB'),b.workId,b.classId,b.studentId,String(b.studentName||''),String(b.answerText||''),String(b.answerUrl||''),new Date().toISOString(),old?old.score:'',old?old.feedback:'',old?'ตรวจแล้ว':'ส่งแล้ว'];if(old)sh.getRange(old._row,1,1,vals.length).setValues([vals]);else sh.appendRow(vals);return {ok:true};}
+function saveWorkGrade(b){const sh=submissionsSheet(),r=_rows(sh).find(x=>String(x.workId)===String(b.workId)&&String(x.studentId)===String(b.studentId));if(!r)return fail('NOT_FOUND');sh.getRange(r._row,9,1,3).setValues([[Number(b.score||0),String(b.feedback||''),'ตรวจแล้ว']]);return {ok:true};}
+function getClassDashboard(p){const cls=_rows(classesSheet()).find(x=>String(x.classId)===String(p.classId));if(!cls)return fail('CLASS_NOT_FOUND');const students=JSON.parse(cls.studentsJson||'[]'), works=_rows(worksSheet()).filter(x=>String(x.classId)===String(p.classId)&&bool(x.active,true)), subs=_rows(submissionsSheet()).filter(x=>String(x.classId)===String(p.classId));const attempts=_rows(attemptsSheet());const rows=students.map(s=>{let total=0,max=0,missing=[];const items=works.map(w=>{max+=Number(w.maxScore||0);if(String(w.type)==='exam'&&w.examId){const a=attempts.filter(a=>String(a.examId)===String(w.examId)&&String(a.studentId)===String(s.studentId)&&String(a.status)==='SUBMITTED').pop();const sc=a?Number(a.finalScore||a.score||0):null;if(sc==null)missing.push(w.title);else total+=sc;return {workId:w.workId,title:w.title,score:sc,max:Number(w.maxScore||0),status:a?'ส่งแล้ว':'ขาด'};}const sub=subs.find(x=>String(x.workId)===String(w.workId)&&String(x.studentId)===String(s.studentId));const sc=sub&&sub.score!==''?Number(sub.score):null;if(sc!=null)total+=sc;if(!sub)missing.push(w.title);return {workId:w.workId,title:w.title,score:sc,max:Number(w.maxScore||0),status:sub?sub.status:'ขาด'};});return {studentId:s.studentId,studentName:s.studentName,total,max,missing,items};});return {ok:true,classInfo:{classId:cls.classId,className:cls.className,subject:cls.subject,code:cls.code},works:works.map(w=>({workId:w.workId,title:w.title,type:w.type,maxScore:Number(w.maxScore||0),dueAt:w.dueAt,examId:w.examId})),students:rows,submissions:subs};}
+function getStudentWork(p){const d=getClassDashboard(p);if(!d.ok)return d;const s=d.students.find(x=>String(x.studentId)===String(p.studentId));if(!s)return fail('STUDENT_NOT_FOUND');const subs=d.submissions.filter(x=>String(x.studentId)===String(p.studentId));return {ok:true,classInfo:d.classInfo,student:s,works:d.works,submissions:subs};}
