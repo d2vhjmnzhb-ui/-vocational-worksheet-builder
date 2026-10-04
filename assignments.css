@@ -49,3 +49,4 @@ body[data-pro-mode="work"] .appbar{display:none!important}
 #proWorkPane .pro-card{padding:10px}
 }
 #proWorkPane .v59-table .v55-name{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;max-height:34px}
+.v61-overflow{overflow:auto;max-height:60vh}.v61-status{border-collapse:collapse;min-width:100%;font-size:13px}.v61-status th,.v61-status td{border:1px solid #dbe5ed;padding:9px;min-width:85px}.v61-status thead th{background:#173f62;color:white}.v61-status tbody th{min-width:180px;text-align:left}.v61-status .missing{background:#ffede8;color:#a13c29}.v61-status .done{background:#e8f5ee;color:#17654d}.v61-status .late{background:#fff4d6;color:#866117}#v61Images img{display:block;width:100%;height:auto;margin:12px 0 24px}#v61Person{width:100%;padding:10px}

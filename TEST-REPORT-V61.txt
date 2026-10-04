@@ -1,0 +1,50 @@
+Automated tests with simulated Apps Script services; no live writes or physical iPad test.
+Backend/exam/API unchanged from V60. JS syntax checked.
+PASS teacher reads require key
+PASS create class and unique roster
+PASS reject duplicate IDs
+PASS create assignment with Thai timezone
+PASS invalid max score rejected
+PASS student wrong code denied
+PASS empty submission rejected
+PASS unsafe link rejected
+PASS submit private PDF and text
+PASS student response excludes peers and access codes
+PASS grade range enforced
+PASS zero grade retained
+PASS resubmit resets old grade
+PASS stale teacher grade rejected
+PASS stale student submit rejected
+PASS successful grade included in total
+PASS request id replay does not duplicate class
+PASS exam link validation
+PASS exam scores scaled with latest completed attempt
+PASS cannot submit generic work to exam
+PASS wrong class cannot submit work
+PASS roster rename keeps access code
+PASS removing existing roster denied
+PASS live results reads risk columns 17 and 18
+PASS new APIs routed through doPost and receipt
+PASS simple entry requires only roster ID
+PASS grade boundaries and no premature rounding
+PASS teacher grade scale settings persist and personal links still work
+PASS unordered grade scale rejected
+PASS health and classroom entry return no roster or scores
+PASS hidden results redacted from entire student response, teacher unchanged
+PASS scores only suppresses grade; publish and hide persist through API
+PASS file only rejects text and forged keep IDs, accepts actual file
+PASS pdf and image enforce extensions on backend
+PASS text/link enforce permitted channels
+PASS existing work can change type without erasing submissions; route protected
+PASS weighted category arithmetic 96/120 plus quizzes and other categories
+PASS empty weighted category remains zero; invalid weights do not save
+PASS weighted dashboard uses category points and hidden API strips category scores
+PASS new classroom defaults weighted, legacy classroom remains total
+PASS existing exam category and teacher reference update are saved
+41 backend checks passed (Apps Script services simulated)
+PASS teacher create class and assignment through confirmed POST
+390 { header: 85.59375, row: 56.5, overflow: false }
+768 { header: 85.59375, row: 56.5, overflow: false }
+1280 { header: 85.59375, row: 56.5, overflow: false }
+PASS compact gradebook at phone/tablet/desktop; score opens review; no page errors
+PASS parent class/individual status report and PNG; student table, missing filter, open task, file-only form, acknowledged upload, responsive widths
