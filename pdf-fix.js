@@ -1,10 +1,15 @@
 (function(){
+  let pending=null;
+  window.loadPdfLibrary=()=>{
+    if(window.html2pdf)return Promise.resolve();if(pending)return pending;
+    pending=new Promise((resolve,reject)=>{const script=document.createElement('script');let done=false;const finish=e=>{if(done)return;done=true;clearTimeout(timer);if(e){pending=null;script.remove();reject(e)}else resolve()};const timer=setTimeout(()=>finish(Error('PDF load timeout')),20000);script.onload=()=>finish(window.html2pdf?null:Error('PDF unavailable'));script.onerror=()=>finish(Error('PDF unavailable'));script.src='./html2pdf.bundle.min.js';document.head.appendChild(script)});return pending;
+  };
   const $=id=>document.getElementById(id);
   function filename(){return(($('docKind').value||'เอกสาร')+'-'+($('subject').value||'ใบงาน')).replace(/[\\/:*?"<>|]/g,'-')+'.pdf'}
   const options=()=>({margin:0,filename:filename(),image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',logging:false,windowWidth:1200},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy'],avoid:['li','.doc-header','.student-line','.question-visual','.practice-summary']}});
   function hideForPdf(){const entries=[];$('paper').querySelectorAll('.foot,.sources-print,.source-warning,[data-pdf-exclude]').forEach(el=>{entries.push([el,el.style.display]);el.style.display='none'});return()=>entries.forEach(([el,display])=>el.style.display=display)}
   async function pdfBlob(){
-    if(typeof html2pdf==='undefined')throw new Error('pdf-library');
+    await window.loadPdfLibrary();
     if(document.fonts?.ready)await document.fonts.ready;
     const restore=hideForPdf(),paper=$('paper');
     try{const worker=html2pdf().set(options()).from(paper).toCanvas().toPdf();const pdf=await worker.get('pdf');return pdf.output('blob')}finally{restore()}

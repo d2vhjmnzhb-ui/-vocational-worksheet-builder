@@ -1,6 +1,8 @@
 const SS_ID = "13ocgfOgH-qLyfmQ1AWgd_oRpo3g0DuqnkNI-8RwoUpI";
 
+let readContext=null;
 function doGet(e) {
+  readContext={book:null,sheets:{},values:new Map()};
   try {
     const p = (e && e.parameter) || {};
     let result;
@@ -22,7 +24,9 @@ function doGet(e) {
           leaveCount:Number(p.leaveCount||0)
         })); break;
       case "logEvent": result = logEvent(p); break;
-      case "workHealth": result={ok:true,apiVersion:"V62"}; break;
+      case "getWorkBootstrap": result=getWorkBootstrap(p); break;
+      case "getWorkReview": result=getWorkReview(p); break;
+      case "workHealth": result={ok:true,apiVersion:"V64"}; break;
       case "getWorkEntry": result=getWorkEntry(p); break;
       case "workReceipt": result=workReceipt(p); break;
       case "listClasses": result=listClasses(p); break;
@@ -35,6 +39,7 @@ function doGet(e) {
   } catch(err) {
     return output(fail(["TEACHER_AUTH_REQUIRED","STUDENT_AUTH_REQUIRED","PERSONAL_LINK_REQUIRED"].indexOf(err.message)>=0?err.message:"SERVER_ERROR"), e && e.parameter ? e.parameter.callback : "");
   }
+ finally {readContext=null;}
 }
 
 function doPost(e) {
@@ -66,15 +71,17 @@ function output(obj,callback) {
 }
 function fail(code) { return {ok:false,errorCode:code,error:code}; }
 function bool(v,def) { if(v===undefined||v===null||v==="")return !!def; return v===true||String(v).toLowerCase()==="true"; }
-function getBook() { return SpreadsheetApp.openById(SS_ID); }
+function getBook() { if(!readContext)return SpreadsheetApp.openById(SS_ID);return readContext.book||(readContext.book=SpreadsheetApp.openById(SS_ID)); }
 
 function getSheet(name,headers) {
+  if(readContext&&readContext.sheets[name])return readContext.sheets[name];
   const ss=getBook(); let sh=ss.getSheetByName(name);
   if(!sh) { sh=ss.insertSheet(name); sh.appendRow(headers); }
   else if(sh.getLastColumn()<headers.length) {
     const start=sh.getLastColumn()+1;
     sh.getRange(1,start,1,headers.length-start+1).setValues([headers.slice(start-1)]);
   }
+  if(readContext)readContext.sheets[name]=sh;
   return sh;
 }
 
@@ -117,7 +124,7 @@ function findExam(examId) {
   const cache=CacheService.getScriptCache();
   const cached=cache.get(cacheKey(examId));
   if(cached) { try{return JSON.parse(cached)}catch(_){} }
-  const data=examsSheet().getDataRange().getValues();
+  const data=readValues(examsSheet());
   for(let i=1;i<data.length;i++) if(String(data[i][0])===String(examId)) {
     const exam={examId:data[i][0],title:data[i][1],duration:Number(data[i][2]),maxLeave:Number(data[i][3]),showScore:bool(data[i][4],true),oneAttempt:bool(data[i][5],true),questions:JSON.parse(data[i][6]||"[]"),active:String(data[i][7]).toLowerCase()!=="false",allowReview:bool(data[i][9],false)};
     try{cache.put(cacheKey(examId),JSON.stringify(exam),300)}catch(_){}
@@ -141,7 +148,7 @@ function getTeacherExam(b) {
 }
 
 function listExams() {
-  const ed=examsSheet().getDataRange().getValues(), ad=attemptsSheet().getDataRange().getValues(), counts={};
+  const ed=readValues(examsSheet()), ad=attemptsSheet().getDataRange().getValues(), counts={};
   for(let i=1;i<ad.length;i++) counts[String(ad[i][1])]=(counts[String(ad[i][1])]||0)+1;
   const exams=[];
   for(let i=ed.length-1;i>=1;i--) {
@@ -343,7 +350,8 @@ function logEvent(b) {
 function classesSheet(){return getSheet('Classes',['classId','className','subject','code','studentsJson','createdAt','entryMode','gradeScaleJson','resultVisibility','scoringMode','categoryWeightsJson']);}
 function worksSheet(){return getSheet('Works',['workId','classId','title','type','maxScore','dueAt','examId','active','createdAt','description','worksheetName','category','referenceUrl','accepting']);}
 function submissionsSheet(){return getSheet('Submissions',['submissionId','workId','classId','studentId','studentName','answerText','answerUrl','submittedAt','score','feedback','status','attachmentsJson','revision']);}
-function _rows(sh){const v=sh.getDataRange().getValues(),h=v[0];return v.slice(1).map((r,i)=>Object.assign(Object.fromEntries(h.map((x,j)=>[x,r[j]])),{_row:i+2}));}
+function readValues(sh){if(!readContext)return sh.getDataRange().getValues();if(!readContext.values.has(sh))readContext.values.set(sh,sh.getDataRange().getValues());return readContext.values.get(sh);}
+function _rows(sh){const v=readValues(sh),h=v[0];return v.slice(1).map((r,i)=>Object.assign(Object.fromEntries(h.map((x,j)=>[x,r[j]])),{_row:i+2}));}
 function parseJson(v,fallback){try{return JSON.parse(v||'')}catch(_){return fallback;}}
 function textCell(v){const s=String(v==null?'':v);return /^[=+@-]/.test(s)?"'"+s:s;}
 function requireTeacher(p){const key=PropertiesService.getScriptProperties().getProperty('V55_TEACHER_KEY');if(!key||String(p.teacherKey||'')!==key)throw Error('TEACHER_AUTH_REQUIRED');}
@@ -391,7 +399,7 @@ function createClass(b){
   const students=cleanRoster(b.students,[]),id=newId('CL');classesSheet().appendRow([id,textCell(b.className),textCell(b.subject),textCell(b.code),JSON.stringify(students),new Date().toISOString(),'simple',JSON.stringify(defaultGradeScale()),'hidden','weighted',JSON.stringify(defaultWeights())]);return {ok:true,classId:id};
 }
 function updateRoster(b){const c=classById(b.classId);if(!c)return fail('CLASS_NOT_FOUND');const old=parseJson(c.studentsJson,[]),students=cleanRoster(b.students,old);if(old.some(s=>!students.some(n=>n.studentId===String(s.studentId))))return fail('ROSTER_REMOVE_NOT_ALLOWED');classesSheet().getRange(c._row,5).setValue(JSON.stringify(students));return {ok:true};}
-function listClasses(p){requireTeacher(p);return {ok:true,apiVersion:'V62',classes:_rows(classesSheet()).map(c=>({classId:c.classId,className:c.className,subject:c.subject,code:c.code}))};}
+function listClasses(p){requireTeacher(p);return {ok:true,apiVersion:'V64',classes:_rows(classesSheet()).map(c=>({classId:c.classId,className:c.className,subject:c.subject,code:c.code}))};}
 function createWork(b){
   if(!classById(b.classId)||!String(b.title||'').trim()||!isFinite(Number(b.maxScore))||Number(b.maxScore)<=0)return fail('BAD_REQUEST');
   const type=String(b.type||'submission');if(['submission','worksheet','text','link','file','image','pdf','exam'].indexOf(type)<0)return fail('INVALID_TYPE');
@@ -408,7 +416,7 @@ function studentAuth(p,c){
   if(String(c.entryMode||'simple')!=='simple'&&(!s.accessCode||String(p.accessCode||'').toUpperCase()!==String(s.accessCode).toUpperCase()))throw Error('PERSONAL_LINK_REQUIRED');
   return s;
 }
-function getWorkEntry(p){const c=classById(p.classId);if(!c)return fail('CLASS_NOT_FOUND');return {ok:true,apiVersion:'V62',className:c.className,subject:c.subject,entryMode:c.entryMode||'simple'};}
+function getWorkEntry(p){const c=classById(p.classId);if(!c)return fail('CLASS_NOT_FOUND');return {ok:true,apiVersion:'V64',className:c.className,subject:c.subject,entryMode:c.entryMode||'simple'};}
 function defaultGradeScale(){return [{min:80,grade:'4'},{min:75,grade:'3.5'},{min:70,grade:'3'},{min:65,grade:'2.5'},{min:60,grade:'2'},{min:55,grade:'1.5'},{min:50,grade:'1'},{min:0,grade:'0'}];}
 function gradeScale(c){return parseJson(c.gradeScaleJson,null)||defaultGradeScale();}
 function calcGrade(percent,scale){const band=scale.find(x=>percent>=x.min);return band?String(band.grade):'\u2014';}
@@ -514,9 +522,9 @@ function dashboardData(p,cls,onlyStudent){
  const categories=categoryScores(items,cls),weighted=scoringMode(cls)==='weighted',exact=weighted?categories.reduce((n,c)=>n+c.points,0):max?total/max*100:0;
  const incomplete=weighted&&categories.some(c=>c.weight>0&&!c.max);
  return {studentId:String(s.studentId),studentName:s.studentName,total:total,max:max,percent:Math.round(exact*100)/100,grade:max?calcGrade(exact,gradeScale(cls)):'\u2014',gradeProvisional:pending>0||missing.length>0||incomplete,categories:categories,missing:missing,pending:pending,items:items};});
-  return {ok:true,apiVersion:'V62',classInfo:{classId:cls.classId,className:cls.className,subject:cls.subject,code:cls.code,entryMode:cls.entryMode||'simple',gradeScale:gradeScale(cls),resultVisibility:resultVisibility(cls),scoringMode:scoringMode(cls),categoryWeights:categoryWeights(cls)},works:works.map(publicWork),students:students,submissions:subs.map(s=>Object.assign({},s,{attachments:parseJson(s.attachmentsJson,[])})),roster:onlyStudent?undefined:roster};
+  return {ok:true,apiVersion:'V64',classInfo:{classId:cls.classId,className:cls.className,subject:cls.subject,code:cls.code,entryMode:cls.entryMode||'simple',gradeScale:gradeScale(cls),resultVisibility:resultVisibility(cls),scoringMode:scoringMode(cls),categoryWeights:categoryWeights(cls)},works:works.map(publicWork),students:students,submissions:(!onlyStudent&&bool(p.compact,false))?[]:subs.map(s=>Object.assign({},s,{attachments:parseJson(s.attachmentsJson,[])})),roster:onlyStudent?undefined:roster};
 }
-function getClassDashboard(p){requireTeacher(p);const c=classById(p.classId);return c?dashboardData(p,c):fail('CLASS_NOT_FOUND');}
+function getClassDashboard(p){requireTeacher(p);const c=classById(p.classId);if(!c)return fail('CLASS_NOT_FOUND');const d=dashboardData(p,c);return bool(p.compact,false)?compactDashboard(d):d;}
 function getStudentWork(p){
  const c=classById(p.classId);if(!c)return fail('CLASS_NOT_FOUND');studentAuth(p,c);
  const d=dashboardData(p,c,p.studentId),student=d.students[0],visibility=resultVisibility(c);
@@ -526,7 +534,7 @@ function getStudentWork(p){
    student.items.forEach(i=>{delete i.score;});
    d.submissions.forEach(s=>{delete s.score;delete s.feedback;});
  }
- return {ok:true,apiVersion:'V62',classInfo:d.classInfo,student:student,works:d.works,submissions:d.submissions};
+ return {ok:true,apiVersion:'V64',classInfo:d.classInfo,student:student,works:d.works,submissions:d.submissions};
 }
 function setupV57(){setupV55();}
 
@@ -543,3 +551,16 @@ function setWorkReceiving(b){
 }
 
 function setupV58(){setupV55();}
+
+function compactDashboard(d){d.submissions=[];d.compact=true;return d;}
+function getWorkBootstrap(p){
+ requireTeacher(p);const rows=_rows(classesSheet());
+ const classes=rows.map(c=>({classId:c.classId,className:c.className,subject:c.subject,code:c.code}));
+ const selected=rows.find(c=>String(c.classId)===String(p.classId));
+ return {ok:true,apiVersion:'V64',classes:classes,dashboard:selected?compactDashboard(dashboardData(Object.assign({},p,{compact:true}),selected)):null};
+}
+function getWorkReview(p){
+ requireTeacher(p);if(!classById(p.classId))return fail('CLASS_NOT_FOUND');
+ return {ok:true,apiVersion:'V64',submissions:_rows(submissionsSheet()).filter(s=>String(s.classId)===String(p.classId)&&String(s.studentId)===String(p.studentId)).map(s=>Object.assign({},s,{attachments:parseJson(s.attachmentsJson,[])}))};
+}
+function setupV64(){setupV55();}
