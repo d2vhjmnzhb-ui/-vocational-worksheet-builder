@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 
-const EXAM_API_URL='https://script.google.com/macros/s/AKfycbxunyrg12A_Fv4fM-6GZZ4rVXz07-EN_rRGsTbBQZmsLcjFnLeLgNX3t-vyHH8d7Xfqgw/exec';
+const EXAM_API_URL='https://script.google.com/macros/s/AKfycbyV7dVAFmte-KyR2-75Hu6x5ErAZf9PXTr04EiE-EKlohkOs1rUS9uz8DLgW28gWU_Y/exec';
 const STUDENT_EXAM_URL='./student-exam.html';
 const $=id=>document.getElementById(id);
 const txt=el=>(el?.textContent||'').trim();

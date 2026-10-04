@@ -1,0 +1,8 @@
+Live GET workHealth returned ok:true, apiVersion:V57 from the user-provided new endpoint.
+18 JavaScript syntax checks passed including inline HTML scripts.
+All three runtime endpoint constants replaced; no old endpoint remains in JS/HTML.
+student-exam.html exact original text after reversing only the URL substitution: PASS.
+Code.gs.txt unchanged from V57: PASS.
+Cache query strings updated in teacher and student-work entry pages.
+No live data reads beyond health, and no writes, uploads or authentication tests performed.
+V57 regression reports apply to unchanged logic; broad browser tests not rerun for URL-only patch.
