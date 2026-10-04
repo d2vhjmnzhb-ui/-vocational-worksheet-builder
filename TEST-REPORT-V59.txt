@@ -1,0 +1,9 @@
+V59 frontend gradebook validation 2026-10-04
+Syntax checks passed for changed JS. All local script/style references retained with updated cache versions.
+Code.gs.txt, work-api.js, student-work.js and student-exam.html are byte-identical to V58. Backend API intentionally remains V58.
+Chromium 131 with actual frontend and mocked Apps Script transport:
+PASS table/cards toggle at all viewport sizes; persisted selected view after reload; search by ID; no-match state; table visible at390/768/1280; no document horizontal overflow; name column stays pinned after horizontal scroll; score cell opens existing grading form.
+Existing browser flow also passed: teacher creation, student PDF submit, grading and result privacy, weighted categories, task types, missing-task filter, personal links, QR, exam HARD SUBMIT GATE and risk dedup, no JS exceptions.
+41 inherited backend checks pass for unchanged V58 backend with simulated services.
+Screenshots inspected for layout. Initial full-run screenshots lacked Thai glyphs on the test host; Thai typography was not fully visually validated. A subsequent typography rerun was incomplete.
+No live Google Sheet/Drive writes, real-device Safari testing or deployment performed. Table view is a UI over existing data, not a new spreadsheet backend. Click score opens existing review form rather than editing cells inline. Existing export behavior retained.
