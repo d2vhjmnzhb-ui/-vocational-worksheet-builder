@@ -1,0 +1,9 @@
+V57 — validation 2026-10-04
+PASS 18 JavaScript syntax checks (including inline HTML and Apps Script).
+HTML parsed; local script/style references resolve.
+PASS 36 backend tests using actual Code.gs in simulated Apps Script services.
+Includes: hidden student results omit grade, scores, totals, percentage, gradeScale and feedback; teacher retains scores; scores-only/full/hidden publication persists; file-only rejects text and forged retained file IDs; image/PDF extension enforcement; text/link channels enforced; existing work type changes preserve submissions; mutation authorization and routing.
+PASS browser workflow in Chromium 131 with actual frontend and mocked Apps Script transport:
+teacher creates class and file-only assignment; student sees no textarea/link field; empty submit error; PDF submission confirmed; teacher grades; student results hidden until teacher publishes; grade 4 from 8/10; remembered sessions; responsive 390/768/1024 widths; personal link; QR; worksheet navigation; teacher edits existing work across text/link/PDF/image/file and student controls match; published results hidden again; HARD SUBMIT GATE warn and dedup checks; no page JavaScript exceptions.
+student-exam.html byte-identical to V56 and supplied V54. Original app files retained.
+LIMITS: no live Google Drive/Sheet writes, authorization or deployment tested. Drive quota problem is not resolved by this patch. New account /exec URL has not been supplied and old URL is retained. Physical iPad/Android not tested. Thai fonts unavailable on test host; layout screenshots use fallback glyphs. PDF/PPTX exports not comprehensively rerun. Student-work visibility does not change original student-exam result presentation. Already displayed/persisted results cannot be retroactively erased from a student's device.

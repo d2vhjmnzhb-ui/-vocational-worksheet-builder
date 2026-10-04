@@ -22,7 +22,7 @@ function doGet(e) {
           leaveCount:Number(p.leaveCount||0)
         })); break;
       case "logEvent": result = logEvent(p); break;
-      case "workHealth": result={ok:true,apiVersion:"V56"}; break;
+      case "workHealth": result={ok:true,apiVersion:"V57"}; break;
       case "getWorkEntry": result=getWorkEntry(p); break;
       case "workReceipt": result=workReceipt(p); break;
       case "listClasses": result=listClasses(p); break;
@@ -40,7 +40,7 @@ function doGet(e) {
 function doPost(e) {
   try {
     const b=JSON.parse((e&&e.postData&&e.postData.contents)||"{}");
-    if(['createClass','createWork','submitWork','saveWorkGrade','updateRoster','saveClassSettings'].indexOf(b.action)>=0) return output(workMutation(b));
+    if(['createClass','createWork','submitWork','saveWorkGrade','updateRoster','saveClassSettings','saveWorkType'].indexOf(b.action)>=0) return output(workMutation(b));
     let result;
     switch(b.action||"") {
       case "createExam": result=createExam(b); break;
@@ -340,7 +340,7 @@ function logEvent(b) {
 }
 
 // ===== V55: compatible additive assignments schema =====
-function classesSheet(){return getSheet('Classes',['classId','className','subject','code','studentsJson','createdAt','entryMode','gradeScaleJson']);}
+function classesSheet(){return getSheet('Classes',['classId','className','subject','code','studentsJson','createdAt','entryMode','gradeScaleJson','resultVisibility']);}
 function worksSheet(){return getSheet('Works',['workId','classId','title','type','maxScore','dueAt','examId','active','createdAt','description','worksheetName']);}
 function submissionsSheet(){return getSheet('Submissions',['submissionId','workId','classId','studentId','studentName','answerText','answerUrl','submittedAt','score','feedback','status','attachmentsJson','revision']);}
 function _rows(sh){const v=sh.getDataRange().getValues(),h=v[0];return v.slice(1).map((r,i)=>Object.assign(Object.fromEntries(h.map((x,j)=>[x,r[j]])),{_row:i+2}));}
@@ -371,7 +371,7 @@ function workMutation(b){
     const previous=receiptValue(b.requestId);if(previous)return previous;
     let r;try{
       if(b.action!=='submitWork')requireTeacher(b);
-      const handlers={createClass:createClass,createWork:createWork,submitWork:submitWork,saveWorkGrade:saveWorkGrade,updateRoster:updateRoster,saveClassSettings:saveClassSettings};
+      const handlers={createClass:createClass,createWork:createWork,submitWork:submitWork,saveWorkGrade:saveWorkGrade,updateRoster:updateRoster,saveClassSettings:saveClassSettings,saveWorkType:saveWorkType};
       r=handlers[b.action](b);
     }catch(e){r=fail(e.message||'SERVER_ERROR');}
     const json=JSON.stringify(r);receiptSheet().appendRow([b.requestId,json,new Date().toISOString()]);
@@ -391,10 +391,10 @@ function createClass(b){
   const students=cleanRoster(b.students,[]),id=newId('CL');classesSheet().appendRow([id,textCell(b.className),textCell(b.subject),textCell(b.code),JSON.stringify(students),new Date().toISOString(),'simple',JSON.stringify(defaultGradeScale())]);return {ok:true,classId:id};
 }
 function updateRoster(b){const c=classById(b.classId);if(!c)return fail('CLASS_NOT_FOUND');const old=parseJson(c.studentsJson,[]),students=cleanRoster(b.students,old);if(old.some(s=>!students.some(n=>n.studentId===String(s.studentId))))return fail('ROSTER_REMOVE_NOT_ALLOWED');classesSheet().getRange(c._row,5).setValue(JSON.stringify(students));return {ok:true};}
-function listClasses(p){requireTeacher(p);return {ok:true,apiVersion:'V56',classes:_rows(classesSheet()).map(c=>({classId:c.classId,className:c.className,subject:c.subject,code:c.code}))};}
+function listClasses(p){requireTeacher(p);return {ok:true,apiVersion:'V57',classes:_rows(classesSheet()).map(c=>({classId:c.classId,className:c.className,subject:c.subject,code:c.code}))};}
 function createWork(b){
   if(!classById(b.classId)||!String(b.title||'').trim()||!isFinite(Number(b.maxScore))||Number(b.maxScore)<=0)return fail('BAD_REQUEST');
-  const type=String(b.type||'submission');if(['submission','worksheet','text','link','file','exam'].indexOf(type)<0)return fail('INVALID_TYPE');
+  const type=String(b.type||'submission');if(['submission','worksheet','text','link','file','image','pdf','exam'].indexOf(type)<0)return fail('INVALID_TYPE');
   if(type==='exam'&&!findExam(b.examId))return fail('INVALID_EXAM');
   let due=String(b.dueAt||'');if(due&&!/(Z|[+-]\d\d:\d\d)$/.test(due))due+='+07:00';if(due&&!isFinite(Date.parse(due)))return fail('INVALID_DUE');
   const id=newId('WK');worksSheet().appendRow([id,b.classId,textCell(b.title),type,Number(b.maxScore),due,String(b.examId||''),true,new Date().toISOString(),textCell(b.description),textCell(b.worksheetName)]);return {ok:true,workId:id};
@@ -407,17 +407,27 @@ function studentAuth(p,c){
   if(String(c.entryMode||'simple')!=='simple'&&(!s.accessCode||String(p.accessCode||'').toUpperCase()!==String(s.accessCode).toUpperCase()))throw Error('PERSONAL_LINK_REQUIRED');
   return s;
 }
-function getWorkEntry(p){const c=classById(p.classId);if(!c)return fail('CLASS_NOT_FOUND');return {ok:true,apiVersion:'V56',className:c.className,subject:c.subject,entryMode:c.entryMode||'simple'};}
+function getWorkEntry(p){const c=classById(p.classId);if(!c)return fail('CLASS_NOT_FOUND');return {ok:true,apiVersion:'V57',className:c.className,subject:c.subject,entryMode:c.entryMode||'simple'};}
 function defaultGradeScale(){return [{min:80,grade:'4'},{min:75,grade:'3.5'},{min:70,grade:'3'},{min:65,grade:'2.5'},{min:60,grade:'2'},{min:55,grade:'1.5'},{min:50,grade:'1'},{min:0,grade:'0'}];}
 function gradeScale(c){return parseJson(c.gradeScaleJson,null)||defaultGradeScale();}
 function calcGrade(percent,scale){const band=scale.find(x=>percent>=x.min);return band?String(band.grade):'\u2014';}
 function saveClassSettings(b){
- const c=classById(b.classId);if(!c)return fail('CLASS_NOT_FOUND');const scale=b.gradeScale;
+ requireTeacher(b);const c=classById(b.classId);if(!c)return fail('CLASS_NOT_FOUND');const scale=b.gradeScale;
+ if(b.resultVisibility!==undefined&&['hidden','scores','full'].indexOf(b.resultVisibility)<0)return fail('INVALID_VISIBILITY');
  if(!Array.isArray(scale)||scale.length<2||scale.length>12)return fail('INVALID_GRADE_SCALE');
  let last=101;for(const x of scale){if(!isFinite(Number(x.min))||Number(x.min)<0||Number(x.min)>100||Number(x.min)>=last||!String(x.grade).trim()||String(x.grade).length>12)return fail('INVALID_GRADE_SCALE');last=Number(x.min);}
  if(last!==0)return fail('INVALID_GRADE_SCALE');const mode=b.entryMode==='personal'?'personal':'simple';
+ classesSheet().getRange(c._row,9).setValue(b.resultVisibility===undefined?resultVisibility(c):b.resultVisibility);
  classesSheet().getRange(c._row,7,1,2).setValues([[mode,JSON.stringify(scale.map(x=>({min:Number(x.min),grade:String(x.grade).trim()})))]]);return {ok:true};
 }
+function saveWorkType(b){
+ requireTeacher(b);
+ const w=_rows(worksSheet()).find(w=>String(w.workId)===String(b.workId)&&String(w.classId)===String(b.classId));
+ if(!w||w.type==='exam')return fail('INVALID_WORK');
+ if(['submission','worksheet','text','link','file','image','pdf'].indexOf(b.type)<0)return fail('INVALID_TYPE');
+ worksSheet().getRange(w._row,4).setValue(b.type);return {ok:true};
+}
+function resultVisibility(c){return ['scores','full'].indexOf(c.resultVisibility)>=0?c.resultVisibility:'hidden';}
 function safeUrl(v){const s=String(v||'').trim();if(s&&!/^https?:\/\/[^\s]+$/i.test(s))throw Error('INVALID_URL');return s;}
 function saveAttachments(input,old,keep){
   if(!Array.isArray(input)||input.length>3)throw Error('FILE_LIMIT');
@@ -441,7 +451,16 @@ function submitWork(b){
   if(old&&Number(b.revision||0)!==Number(old.revision||0))return fail('REVISION_CONFLICT');
   const text=String(b.answerText||'').trim(),url=safeUrl(b.answerUrl);if(text.length>20000)return fail('TEXT_TOO_LONG');
   const input=b.files||[],keep=b.keepFileIds||[],oldFiles=parseJson(old&&old.attachmentsJson,[]);
-  if(!text&&!url&&!input.length&&!oldFiles.some(f=>keep.indexOf(f.id)>=0))return fail('EMPTY_SUBMISSION');
+  const selected=oldFiles.filter(f=>keep.indexOf(f.id)>=0),hasFiles=input.length+selected.length>0;
+  if(['file','image','pdf'].indexOf(w.type)>=0){
+    if(text||url)return fail('FILES_ONLY');
+    if(!hasFiles)return fail('FILE_REQUIRED');
+    const accepted=w.type==='image'?/\.(jpe?g|png|webp|heic|heif)$/i:w.type==='pdf'?/\.pdf$/i:null;
+    if(accepted&&input.concat(selected).some(f=>!accepted.test(String(f.name||''))))return fail('WRONG_FILE_TYPE');
+  }
+  if(w.type==='text'&&(!text||url||hasFiles))return fail('TEXT_ONLY');
+  if(w.type==='link'&&(!url||text||hasFiles))return fail('LINK_ONLY');
+  if(!text&&!url&&!hasFiles)return fail('EMPTY_SUBMISSION');
   const saved=saveAttachments(input,oldFiles,keep),now=new Date().toISOString();
   const vals=[old?old.submissionId:newId('SB'),w.workId,cls.classId,String(student.studentId),textCell(student.studentName),textCell(text),url,now,'','',w.dueAt&&Date.parse(now)>Date.parse(w.dueAt)?'\u0e2a\u0e48\u0e07\u0e0a\u0e49\u0e32':'\u0e2a\u0e48\u0e07\u0e41\u0e25\u0e49\u0e27',JSON.stringify(saved.files),Number(old&&old.revision||0)+1];
   try{if(old)sh.getRange(old._row,1,1,vals.length).setValues([vals]);else sh.appendRow(vals);}catch(e){saved.created.forEach(f=>{try{f.setTrashed(true)}catch(_){}});throw e;}
@@ -473,7 +492,18 @@ function dashboardData(p,cls,onlyStudent){
     if(status==='\u0e02\u0e32\u0e14')missing.push(w.title);if(score!=null)total+=score;
     return {workId:w.workId,title:w.title,score:score,max:full,status:status,late:late,attemptId:a&&a.attemptId||''};
   });total=Math.round(total*100)/100;return {studentId:String(s.studentId),studentName:s.studentName,total:total,max:max,percent:max?Math.round(total/max*10000)/100:0,grade:max?calcGrade(total/max*100,gradeScale(cls)):'\u2014',gradeProvisional:pending>0||missing.length>0,missing:missing,pending:pending,items:items};});
-  return {ok:true,apiVersion:'V56',classInfo:{classId:cls.classId,className:cls.className,subject:cls.subject,code:cls.code,entryMode:cls.entryMode||'simple',gradeScale:gradeScale(cls)},works:works.map(publicWork),students:students,submissions:subs.map(s=>Object.assign({},s,{attachments:parseJson(s.attachmentsJson,[])})),roster:onlyStudent?undefined:roster};
+  return {ok:true,apiVersion:'V57',classInfo:{classId:cls.classId,className:cls.className,subject:cls.subject,code:cls.code,entryMode:cls.entryMode||'simple',gradeScale:gradeScale(cls),resultVisibility:resultVisibility(cls)},works:works.map(publicWork),students:students,submissions:subs.map(s=>Object.assign({},s,{attachments:parseJson(s.attachmentsJson,[])})),roster:onlyStudent?undefined:roster};
 }
 function getClassDashboard(p){requireTeacher(p);const c=classById(p.classId);return c?dashboardData(p,c):fail('CLASS_NOT_FOUND');}
-function getStudentWork(p){const c=classById(p.classId);if(!c)return fail('CLASS_NOT_FOUND');studentAuth(p,c);const d=dashboardData(p,c,p.studentId);return {ok:true,apiVersion:'V56',classInfo:d.classInfo,student:d.students[0],works:d.works,submissions:d.submissions};}
+function getStudentWork(p){
+ const c=classById(p.classId);if(!c)return fail('CLASS_NOT_FOUND');studentAuth(p,c);
+ const d=dashboardData(p,c,p.studentId),student=d.students[0],visibility=resultVisibility(c);
+ if(visibility!=='full'){delete student.grade;delete student.gradeProvisional;delete d.classInfo.gradeScale;}
+ if(visibility==='hidden'){
+   delete student.total;delete student.percent;
+   student.items.forEach(i=>{delete i.score;});
+   d.submissions.forEach(s=>{delete s.score;delete s.feedback;});
+ }
+ return {ok:true,apiVersion:'V57',classInfo:d.classInfo,student:student,works:d.works,submissions:d.submissions};
+}
+function setupV57(){setupV55();}
