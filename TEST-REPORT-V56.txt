@@ -1,0 +1,29 @@
+V56 validation — 2026-10-04
+Built on V55 derived from the supplied V54 ZIP; all original V54 filenames retained.
+
+PASS: 18 JavaScript syntax checks including inline HTML scripts and Apps Script source.
+PASS: HTML parsed and local script/style references resolve.
+PASS: 30 backend checks using actual Code.gs.txt in a Node VM with simulated Apps Script services.
+PASS: Browser flow in Chromium 131 with actual frontend and mocked Apps Script transport:
+- Teacher connects, creates classroom/roster and assignment.
+- Empty student submission displays an inline error; bare URL domain normalizes.
+- Student signs in using roster ID only, submits PDF plus text, receives server acknowledgement.
+- Teacher reviews, assigns 8/10 and feedback; student sees 8/10 and grade 4.
+- Student and teacher remembered sessions survive reload.
+- Viewports 390x844, 768x1024, 1024x768 have no document horizontal overflow.
+- Teacher switches to personal-link mode; second student opens private link without typing a code.
+- Classroom QR canvas is generated.
+- Navigation back to original worksheet remains functional.
+- HARD SUBMIT GATE rejects unauthorized submit; risk=warn does not submit; duplicate risks deduplicated.
+- No page JavaScript exceptions in tested flow.
+PASS: student-exam.html byte-for-byte identical to supplied V54.
+PASS: Apps Script source is ASCII with Unicode escapes; backend tests execute Thai strings correctly.
+
+Limits:
+No deployment or access to user's live Google Sheet/Drive was performed.
+Apps Script authorization, real upload latency/quota, Drive permissions and live exam sync require deployed verification.
+Responsive emulation is not testing on physical iPad/Android hardware.
+Screenshots inspected for layout; test host lacks Thai fonts and blocks external font requests, so Thai typography was not visually validated.
+Existing slide/PDF/PPTX/worksheet tools were retained; comprehensive export regression testing was not rerun.
+Grade uses summed available scores divided by total assignment maximum, with configurable thresholds; weighted categories are not implemented.
+Historical V55 report describes V55 tests only.

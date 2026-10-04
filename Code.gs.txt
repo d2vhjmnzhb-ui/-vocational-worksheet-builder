@@ -22,6 +22,8 @@ function doGet(e) {
           leaveCount:Number(p.leaveCount||0)
         })); break;
       case "logEvent": result = logEvent(p); break;
+      case "workHealth": result={ok:true,apiVersion:"V56"}; break;
+      case "getWorkEntry": result=getWorkEntry(p); break;
       case "workReceipt": result=workReceipt(p); break;
       case "listClasses": result=listClasses(p); break;
       case "listWorks": result=listWorks(p); break;
@@ -31,14 +33,14 @@ function doGet(e) {
     }
     return output(result,p.callback);
   } catch(err) {
-    return output(fail(["TEACHER_AUTH_REQUIRED","STUDENT_AUTH_REQUIRED"].indexOf(err.message)>=0?err.message:"SERVER_ERROR"), e && e.parameter ? e.parameter.callback : "");
+    return output(fail(["TEACHER_AUTH_REQUIRED","STUDENT_AUTH_REQUIRED","PERSONAL_LINK_REQUIRED"].indexOf(err.message)>=0?err.message:"SERVER_ERROR"), e && e.parameter ? e.parameter.callback : "");
   }
 }
 
 function doPost(e) {
   try {
     const b=JSON.parse((e&&e.postData&&e.postData.contents)||"{}");
-    if(['createClass','createWork','submitWork','saveWorkGrade','updateRoster'].indexOf(b.action)>=0) return output(workMutation(b));
+    if(['createClass','createWork','submitWork','saveWorkGrade','updateRoster','saveClassSettings'].indexOf(b.action)>=0) return output(workMutation(b));
     let result;
     switch(b.action||"") {
       case "createExam": result=createExam(b); break;
@@ -190,7 +192,7 @@ function deleteExam(b) {
 function attemptResponse(row,exam) {
   const start=row[5] instanceof Date?row[5]:new Date(row[5]);
   const end=new Date(start.getTime()+exam.duration*60000);
-  // V52: attempt ที่หมดเวลาแล้วห้ามคืนค่าให้หน้าเด็กไป submit ทันทีแบบเงียบ
+  // V52: attempt \u0e17\u0e35\u0e48\u0e2b\u0e21\u0e14\u0e40\u0e27\u0e25\u0e32\u0e41\u0e25\u0e49\u0e27\u0e2b\u0e49\u0e32\u0e21\u0e04\u0e37\u0e19\u0e04\u0e48\u0e32\u0e43\u0e2b\u0e49\u0e2b\u0e19\u0e49\u0e32\u0e40\u0e14\u0e47\u0e01\u0e44\u0e1b submit \u0e17\u0e31\u0e19\u0e17\u0e35\u0e41\u0e1a\u0e1a\u0e40\u0e07\u0e35\u0e22\u0e1a
   if(end.getTime()<=Date.now()) return fail('ATTEMPT_EXPIRED');
   return {ok:true,attemptId:row[0],startMs:start.getTime(),endMs:end.getTime(),resumed:true};
 }
@@ -255,7 +257,7 @@ function submitAttempt(b) {
 
 function getResults(b) {
   const exam=findExam(b.examId); if(!exam)return fail("INVALID_EXAM");
-  // V46: รวม Events เพื่อให้ครูเห็นเหตุการณ์เสี่ยงแม้นักเรียนยังทำข้อสอบอยู่
+  // V46: \u0e23\u0e27\u0e21 Events \u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e43\u0e2b\u0e49\u0e04\u0e23\u0e39\u0e40\u0e2b\u0e47\u0e19\u0e40\u0e2b\u0e15\u0e38\u0e01\u0e32\u0e23\u0e13\u0e4c\u0e40\u0e2a\u0e35\u0e48\u0e22\u0e07\u0e41\u0e21\u0e49\u0e19\u0e31\u0e01\u0e40\u0e23\u0e35\u0e22\u0e19\u0e22\u0e31\u0e07\u0e17\u0e33\u0e02\u0e49\u0e2d\u0e2a\u0e2d\u0e1a\u0e2d\u0e22\u0e39\u0e48
   const eventCounts={},eventLast={};
   const ev=getBook().getSheetByName("Events");
   if(ev){
@@ -327,7 +329,7 @@ function logEvent(b) {
   try{
     const count=Number(b.leaveCount||0);
     sh.appendRow([new Date(),b.examId||"",b.attemptId||"",b.event||"",count]);
-    // V47: เขียนยอดเหตุการณ์ล่าสุดลง Attempts โดยตรง เพื่อให้หน้าครูอ่านแบบเบาและเร็ว
+    // V47: \u0e40\u0e02\u0e35\u0e22\u0e19\u0e22\u0e2d\u0e14\u0e40\u0e2b\u0e15\u0e38\u0e01\u0e32\u0e23\u0e13\u0e4c\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14\u0e25\u0e07 Attempts \u0e42\u0e14\u0e22\u0e15\u0e23\u0e07 \u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e43\u0e2b\u0e49\u0e2b\u0e19\u0e49\u0e32\u0e04\u0e23\u0e39\u0e2d\u0e48\u0e32\u0e19\u0e41\u0e1a\u0e1a\u0e40\u0e1a\u0e32\u0e41\u0e25\u0e30\u0e40\u0e23\u0e47\u0e27
     const a=findAttempt(b.attemptId);
     if(a){
       if(count>Number(a.data[9]||0)) a.sheet.getRange(a.row,10).setValue(count);
@@ -338,7 +340,7 @@ function logEvent(b) {
 }
 
 // ===== V55: compatible additive assignments schema =====
-function classesSheet(){return getSheet('Classes',['classId','className','subject','code','studentsJson','createdAt']);}
+function classesSheet(){return getSheet('Classes',['classId','className','subject','code','studentsJson','createdAt','entryMode','gradeScaleJson']);}
 function worksSheet(){return getSheet('Works',['workId','classId','title','type','maxScore','dueAt','examId','active','createdAt','description','worksheetName']);}
 function submissionsSheet(){return getSheet('Submissions',['submissionId','workId','classId','studentId','studentName','answerText','answerUrl','submittedAt','score','feedback','status','attachmentsJson','revision']);}
 function _rows(sh){const v=sh.getDataRange().getValues(),h=v[0];return v.slice(1).map((r,i)=>Object.assign(Object.fromEntries(h.map((x,j)=>[x,r[j]])),{_row:i+2}));}
@@ -353,6 +355,7 @@ function setupV55(){
   worksSheet();submissionsSheet();receiptSheet();
   console.log('Teacher key: '+props.getProperty('V55_TEACHER_KEY'));
 }
+function setupV56(){setupV55();}
 function receiptSheet(){return getSheet('WorkRequests',['requestId','resultJson','createdAt']);}
 function receiptValue(id){
   let value=CacheService.getScriptCache().get('wr_'+id);if(value)return parseJson(value,null);
@@ -363,12 +366,12 @@ function receiptValue(id){
 function workReceipt(p){if(!/^[a-f0-9]{32}$/.test(String(p.requestId||'')))return fail('BAD_REQUEST');return receiptValue(p.requestId)||{ok:true,pending:true};}
 function workMutation(b){
   if(!/^[a-f0-9]{32}$/.test(String(b.requestId||'')))return fail('REQUEST_ID_REQUIRED');
-  const lock=LockService.getScriptLock();lock.waitLock(30000);
+  const lock=LockService.getScriptLock();try{lock.waitLock(15000)}catch(e){const r=fail('SERVER_BUSY');CacheService.getScriptCache().put('wr_'+b.requestId,JSON.stringify(r),60);return r;}
   try{
     const previous=receiptValue(b.requestId);if(previous)return previous;
     let r;try{
       if(b.action!=='submitWork')requireTeacher(b);
-      const handlers={createClass:createClass,createWork:createWork,submitWork:submitWork,saveWorkGrade:saveWorkGrade,updateRoster:updateRoster};
+      const handlers={createClass:createClass,createWork:createWork,submitWork:submitWork,saveWorkGrade:saveWorkGrade,updateRoster:updateRoster,saveClassSettings:saveClassSettings};
       r=handlers[b.action](b);
     }catch(e){r=fail(e.message||'SERVER_ERROR');}
     const json=JSON.stringify(r);receiptSheet().appendRow([b.requestId,json,new Date().toISOString()]);
@@ -385,10 +388,10 @@ function cleanRoster(input,old){
 }
 function createClass(b){
   if(!String(b.className||'').trim())return fail('CLASS_NAME_REQUIRED');
-  const students=cleanRoster(b.students,[]),id=newId('CL');classesSheet().appendRow([id,textCell(b.className),textCell(b.subject),textCell(b.code),JSON.stringify(students),new Date().toISOString()]);return {ok:true,classId:id};
+  const students=cleanRoster(b.students,[]),id=newId('CL');classesSheet().appendRow([id,textCell(b.className),textCell(b.subject),textCell(b.code),JSON.stringify(students),new Date().toISOString(),'simple',JSON.stringify(defaultGradeScale())]);return {ok:true,classId:id};
 }
 function updateRoster(b){const c=classById(b.classId);if(!c)return fail('CLASS_NOT_FOUND');const old=parseJson(c.studentsJson,[]),students=cleanRoster(b.students,old);if(old.some(s=>!students.some(n=>n.studentId===String(s.studentId))))return fail('ROSTER_REMOVE_NOT_ALLOWED');classesSheet().getRange(c._row,5).setValue(JSON.stringify(students));return {ok:true};}
-function listClasses(p){requireTeacher(p);return {ok:true,apiVersion:'V55',classes:_rows(classesSheet()).map(c=>({classId:c.classId,className:c.className,subject:c.subject,code:c.code}))};}
+function listClasses(p){requireTeacher(p);return {ok:true,apiVersion:'V56',classes:_rows(classesSheet()).map(c=>({classId:c.classId,className:c.className,subject:c.subject,code:c.code}))};}
 function createWork(b){
   if(!classById(b.classId)||!String(b.title||'').trim()||!isFinite(Number(b.maxScore))||Number(b.maxScore)<=0)return fail('BAD_REQUEST');
   const type=String(b.type||'submission');if(['submission','worksheet','text','link','file','exam'].indexOf(type)<0)return fail('INVALID_TYPE');
@@ -398,14 +401,30 @@ function createWork(b){
 }
 function publicWork(w){return {workId:w.workId,classId:w.classId,title:w.title,type:w.type,maxScore:Number(w.maxScore),dueAt:w.dueAt,examId:w.examId,active:bool(w.active,true),description:w.description||'',worksheetName:w.worksheetName||''};}
 function listWorks(p){requireTeacher(p);return {ok:true,works:_rows(worksSheet()).filter(w=>!p.classId||String(w.classId)===String(p.classId)).map(publicWork)};}
-function studentAuth(p,c){const s=parseJson(c.studentsJson,[]).find(s=>String(s.studentId)===String(p.studentId));if(!s||!s.accessCode||String(p.accessCode||'').toUpperCase()!==String(s.accessCode).toUpperCase())throw Error('STUDENT_AUTH_REQUIRED');return s;}
+function studentAuth(p,c){
+  const s=parseJson(c.studentsJson,[]).find(s=>String(s.studentId)===String(p.studentId));
+  if(!s)throw Error('STUDENT_AUTH_REQUIRED');
+  if(String(c.entryMode||'simple')!=='simple'&&(!s.accessCode||String(p.accessCode||'').toUpperCase()!==String(s.accessCode).toUpperCase()))throw Error('PERSONAL_LINK_REQUIRED');
+  return s;
+}
+function getWorkEntry(p){const c=classById(p.classId);if(!c)return fail('CLASS_NOT_FOUND');return {ok:true,apiVersion:'V56',className:c.className,subject:c.subject,entryMode:c.entryMode||'simple'};}
+function defaultGradeScale(){return [{min:80,grade:'4'},{min:75,grade:'3.5'},{min:70,grade:'3'},{min:65,grade:'2.5'},{min:60,grade:'2'},{min:55,grade:'1.5'},{min:50,grade:'1'},{min:0,grade:'0'}];}
+function gradeScale(c){return parseJson(c.gradeScaleJson,null)||defaultGradeScale();}
+function calcGrade(percent,scale){const band=scale.find(x=>percent>=x.min);return band?String(band.grade):'\u2014';}
+function saveClassSettings(b){
+ const c=classById(b.classId);if(!c)return fail('CLASS_NOT_FOUND');const scale=b.gradeScale;
+ if(!Array.isArray(scale)||scale.length<2||scale.length>12)return fail('INVALID_GRADE_SCALE');
+ let last=101;for(const x of scale){if(!isFinite(Number(x.min))||Number(x.min)<0||Number(x.min)>100||Number(x.min)>=last||!String(x.grade).trim()||String(x.grade).length>12)return fail('INVALID_GRADE_SCALE');last=Number(x.min);}
+ if(last!==0)return fail('INVALID_GRADE_SCALE');const mode=b.entryMode==='personal'?'personal':'simple';
+ classesSheet().getRange(c._row,7,1,2).setValues([[mode,JSON.stringify(scale.map(x=>({min:Number(x.min),grade:String(x.grade).trim()})))]]);return {ok:true};
+}
 function safeUrl(v){const s=String(v||'').trim();if(s&&!/^https?:\/\/[^\s]+$/i.test(s))throw Error('INVALID_URL');return s;}
 function saveAttachments(input,old,keep){
   if(!Array.isArray(input)||input.length>3)throw Error('FILE_LIMIT');
   const kept=(old||[]).filter(f=>(keep||[]).indexOf(f.id)>=0);if(kept.length+input.length>3)throw Error('FILE_LIMIT');
   let bytesTotal=kept.reduce((n,f)=>n+Number(f.size||0),0);
   const blobs=input.map(f=>{const name=String(f.name||'').replace(/[\\/\x00-\x1f]/g,'_').slice(0,150);
-    const ext=name.split('.').pop().toLowerCase(),types={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',pdf:'application/pdf',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',txt:'text/plain'};
+    const ext=name.split('.').pop().toLowerCase(),types={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif',pdf:'application/pdf',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',txt:'text/plain'};
     if(!types[ext]||typeof f.base64!=='string'||f.base64.length>4200000)throw Error('INVALID_FILE');
     const bytes=Utilities.base64Decode(f.base64);bytesTotal+=bytes.length;
     if(!bytes.length||bytes.length>3*1024*1024||bytesTotal>6*1024*1024)throw Error('FILE_TOO_LARGE');
@@ -424,7 +443,7 @@ function submitWork(b){
   const input=b.files||[],keep=b.keepFileIds||[],oldFiles=parseJson(old&&old.attachmentsJson,[]);
   if(!text&&!url&&!input.length&&!oldFiles.some(f=>keep.indexOf(f.id)>=0))return fail('EMPTY_SUBMISSION');
   const saved=saveAttachments(input,oldFiles,keep),now=new Date().toISOString();
-  const vals=[old?old.submissionId:newId('SB'),w.workId,cls.classId,String(student.studentId),textCell(student.studentName),textCell(text),url,now,'','',w.dueAt&&Date.parse(now)>Date.parse(w.dueAt)?'ส่งช้า':'ส่งแล้ว',JSON.stringify(saved.files),Number(old&&old.revision||0)+1];
+  const vals=[old?old.submissionId:newId('SB'),w.workId,cls.classId,String(student.studentId),textCell(student.studentName),textCell(text),url,now,'','',w.dueAt&&Date.parse(now)>Date.parse(w.dueAt)?'\u0e2a\u0e48\u0e07\u0e0a\u0e49\u0e32':'\u0e2a\u0e48\u0e07\u0e41\u0e25\u0e49\u0e27',JSON.stringify(saved.files),Number(old&&old.revision||0)+1];
   try{if(old)sh.getRange(old._row,1,1,vals.length).setValues([vals]);else sh.appendRow(vals);}catch(e){saved.created.forEach(f=>{try{f.setTrashed(true)}catch(_){}});throw e;}
   // Replaced files stay private in Drive; do not delete historical evidence automatically.
   return {ok:true,submissionId:vals[0],revision:vals[12],submittedAt:now};
@@ -434,7 +453,7 @@ function saveWorkGrade(b){
   const sh=submissionsSheet(),s=_rows(sh).find(s=>String(s.workId)===String(b.workId)&&String(s.studentId)===String(b.studentId));if(!s)return fail('NOT_FOUND');
   if(Number(b.revision||0)!==Number(s.revision||0))return fail('REVISION_CONFLICT');
   if(b.score===''||b.score==null||!isFinite(Number(b.score))||Number(b.score)<0||Number(b.score)>Number(w.maxScore))return fail('INVALID_SCORE');
-  sh.getRange(s._row,9,1,3).setValues([[Number(b.score),textCell(String(b.feedback||'').slice(0,5000)),'ตรวจแล้ว']]);return {ok:true};
+  sh.getRange(s._row,9,1,3).setValues([[Number(b.score),textCell(String(b.feedback||'').slice(0,5000)),'\u0e15\u0e23\u0e27\u0e08\u0e41\u0e25\u0e49\u0e27']]);return {ok:true};
 }
 function dashboardData(p,cls,onlyStudent){
   const roster=parseJson(cls.studentsJson,[]).filter(s=>!onlyStudent||String(s.studentId)===String(onlyStudent));
@@ -446,15 +465,15 @@ function dashboardData(p,cls,onlyStudent){
   attempts.forEach(a=>{const k=a.examId+'|'+a.studentId,prev=attemptMap[k];if(!prev||Date.parse(a.endAt||a.startAt)>=Date.parse(prev.endAt||prev.startAt))attemptMap[k]=a;});
   const examMeta={};works.filter(w=>w.type==='exam').forEach(w=>{if(!examMeta[w.examId])examMeta[w.examId]=findExam(w.examId);});
   const students=roster.map(s=>{let total=0,max=0,missing=[],pending=0;const items=works.map(w=>{
-    const full=Number(w.maxScore),a=attemptMap[w.examId+'|'+s.studentId],sub=subMap[w.workId+'|'+s.studentId];let score=null,status='ขาด',late=false;max+=full;
+    const full=Number(w.maxScore),a=attemptMap[w.examId+'|'+s.studentId],sub=subMap[w.workId+'|'+s.studentId];let score=null,status='\u0e02\u0e32\u0e14',late=false;max+=full;
     if(w.type==='exam'){
       if(a){const raw=a.finalScore!==''&&a.finalScore!=null?Number(a.finalScore):Number(a.score||0);const exam=examMeta[w.examId];const needs=exam&&hasText(exam.questions)&&(!a.gradingJson||a.gradingJson==='{}');
-        const denom=Number(a.total)|| (exam?maxPoints(exam.questions):0);score=denom>0?Math.round(Math.max(0,Math.min(full,raw/denom*full))*100)/100:null;status=needs?'รอตรวจข้อเขียน':'ตรวจแล้ว';if(needs)pending++;}
-    }else if(sub){score=sub.score!==''&&sub.score!=null?Number(sub.score):null;late=!!(w.dueAt&&Date.parse(sub.submittedAt)>Date.parse(w.dueAt));status=score!=null?'ตรวจแล้ว':late?'ส่งช้า':'ส่งแล้ว';if(score==null)pending++;}
-    if(status==='ขาด')missing.push(w.title);if(score!=null)total+=score;
+        const denom=Number(a.total)|| (exam?maxPoints(exam.questions):0);score=denom>0?Math.round(Math.max(0,Math.min(full,raw/denom*full))*100)/100:null;status=needs?'\u0e23\u0e2d\u0e15\u0e23\u0e27\u0e08\u0e02\u0e49\u0e2d\u0e40\u0e02\u0e35\u0e22\u0e19':'\u0e15\u0e23\u0e27\u0e08\u0e41\u0e25\u0e49\u0e27';if(needs)pending++;}
+    }else if(sub){score=sub.score!==''&&sub.score!=null?Number(sub.score):null;late=!!(w.dueAt&&Date.parse(sub.submittedAt)>Date.parse(w.dueAt));status=score!=null?'\u0e15\u0e23\u0e27\u0e08\u0e41\u0e25\u0e49\u0e27':late?'\u0e2a\u0e48\u0e07\u0e0a\u0e49\u0e32':'\u0e2a\u0e48\u0e07\u0e41\u0e25\u0e49\u0e27';if(score==null)pending++;}
+    if(status==='\u0e02\u0e32\u0e14')missing.push(w.title);if(score!=null)total+=score;
     return {workId:w.workId,title:w.title,score:score,max:full,status:status,late:late,attemptId:a&&a.attemptId||''};
-  });total=Math.round(total*100)/100;return {studentId:String(s.studentId),studentName:s.studentName,total:total,max:max,percent:max?Math.round(total/max*10000)/100:0,missing:missing,pending:pending,items:items};});
-  return {ok:true,apiVersion:'V55',classInfo:{classId:cls.classId,className:cls.className,subject:cls.subject,code:cls.code},works:works.map(publicWork),students:students,submissions:subs.map(s=>Object.assign({},s,{attachments:parseJson(s.attachmentsJson,[])})),roster:onlyStudent?undefined:roster};
+  });total=Math.round(total*100)/100;return {studentId:String(s.studentId),studentName:s.studentName,total:total,max:max,percent:max?Math.round(total/max*10000)/100:0,grade:max?calcGrade(total/max*100,gradeScale(cls)):'\u2014',gradeProvisional:pending>0||missing.length>0,missing:missing,pending:pending,items:items};});
+  return {ok:true,apiVersion:'V56',classInfo:{classId:cls.classId,className:cls.className,subject:cls.subject,code:cls.code,entryMode:cls.entryMode||'simple',gradeScale:gradeScale(cls)},works:works.map(publicWork),students:students,submissions:subs.map(s=>Object.assign({},s,{attachments:parseJson(s.attachmentsJson,[])})),roster:onlyStudent?undefined:roster};
 }
 function getClassDashboard(p){requireTeacher(p);const c=classById(p.classId);return c?dashboardData(p,c):fail('CLASS_NOT_FOUND');}
-function getStudentWork(p){const c=classById(p.classId);if(!c)return fail('CLASS_NOT_FOUND');studentAuth(p,c);const d=dashboardData(p,c,p.studentId);return {ok:true,apiVersion:'V55',classInfo:d.classInfo,student:d.students[0],works:d.works,submissions:d.submissions};}
+function getStudentWork(p){const c=classById(p.classId);if(!c)return fail('CLASS_NOT_FOUND');studentAuth(p,c);const d=dashboardData(p,c,p.studentId);return {ok:true,apiVersion:'V56',classInfo:d.classInfo,student:d.students[0],works:d.works,submissions:d.submissions};}
