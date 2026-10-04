@@ -22,7 +22,7 @@ function doGet(e) {
           leaveCount:Number(p.leaveCount||0)
         })); break;
       case "logEvent": result = logEvent(p); break;
-      case "workHealth": result={ok:true,apiVersion:"V58"}; break;
+      case "workHealth": result={ok:true,apiVersion:"V62"}; break;
       case "getWorkEntry": result=getWorkEntry(p); break;
       case "workReceipt": result=workReceipt(p); break;
       case "listClasses": result=listClasses(p); break;
@@ -40,7 +40,7 @@ function doGet(e) {
 function doPost(e) {
   try {
     const b=JSON.parse((e&&e.postData&&e.postData.contents)||"{}");
-    if(['createClass','createWork','submitWork','saveWorkGrade','updateRoster','saveClassSettings','saveWorkType'].indexOf(b.action)>=0) return output(workMutation(b));
+    if(['createClass','createWork','submitWork','saveWorkGrade','updateRoster','saveClassSettings','saveWorkType','setWorkReceiving'].indexOf(b.action)>=0) return output(workMutation(b));
     let result;
     switch(b.action||"") {
       case "createExam": result=createExam(b); break;
@@ -341,7 +341,7 @@ function logEvent(b) {
 
 // ===== V55: compatible additive assignments schema =====
 function classesSheet(){return getSheet('Classes',['classId','className','subject','code','studentsJson','createdAt','entryMode','gradeScaleJson','resultVisibility','scoringMode','categoryWeightsJson']);}
-function worksSheet(){return getSheet('Works',['workId','classId','title','type','maxScore','dueAt','examId','active','createdAt','description','worksheetName','category','referenceUrl']);}
+function worksSheet(){return getSheet('Works',['workId','classId','title','type','maxScore','dueAt','examId','active','createdAt','description','worksheetName','category','referenceUrl','accepting']);}
 function submissionsSheet(){return getSheet('Submissions',['submissionId','workId','classId','studentId','studentName','answerText','answerUrl','submittedAt','score','feedback','status','attachmentsJson','revision']);}
 function _rows(sh){const v=sh.getDataRange().getValues(),h=v[0];return v.slice(1).map((r,i)=>Object.assign(Object.fromEntries(h.map((x,j)=>[x,r[j]])),{_row:i+2}));}
 function parseJson(v,fallback){try{return JSON.parse(v||'')}catch(_){return fallback;}}
@@ -371,7 +371,7 @@ function workMutation(b){
     const previous=receiptValue(b.requestId);if(previous)return previous;
     let r;try{
       if(b.action!=='submitWork')requireTeacher(b);
-      const handlers={createClass:createClass,createWork:createWork,submitWork:submitWork,saveWorkGrade:saveWorkGrade,updateRoster:updateRoster,saveClassSettings:saveClassSettings,saveWorkType:saveWorkType};
+      const handlers={createClass:createClass,createWork:createWork,submitWork:submitWork,saveWorkGrade:saveWorkGrade,updateRoster:updateRoster,saveClassSettings:saveClassSettings,saveWorkType:saveWorkType,setWorkReceiving:setWorkReceiving};
       r=handlers[b.action](b);
     }catch(e){r=fail(e.message||'SERVER_ERROR');}
     const json=JSON.stringify(r);receiptSheet().appendRow([b.requestId,json,new Date().toISOString()]);
@@ -391,16 +391,16 @@ function createClass(b){
   const students=cleanRoster(b.students,[]),id=newId('CL');classesSheet().appendRow([id,textCell(b.className),textCell(b.subject),textCell(b.code),JSON.stringify(students),new Date().toISOString(),'simple',JSON.stringify(defaultGradeScale()),'hidden','weighted',JSON.stringify(defaultWeights())]);return {ok:true,classId:id};
 }
 function updateRoster(b){const c=classById(b.classId);if(!c)return fail('CLASS_NOT_FOUND');const old=parseJson(c.studentsJson,[]),students=cleanRoster(b.students,old);if(old.some(s=>!students.some(n=>n.studentId===String(s.studentId))))return fail('ROSTER_REMOVE_NOT_ALLOWED');classesSheet().getRange(c._row,5).setValue(JSON.stringify(students));return {ok:true};}
-function listClasses(p){requireTeacher(p);return {ok:true,apiVersion:'V58',classes:_rows(classesSheet()).map(c=>({classId:c.classId,className:c.className,subject:c.subject,code:c.code}))};}
+function listClasses(p){requireTeacher(p);return {ok:true,apiVersion:'V62',classes:_rows(classesSheet()).map(c=>({classId:c.classId,className:c.className,subject:c.subject,code:c.code}))};}
 function createWork(b){
   if(!classById(b.classId)||!String(b.title||'').trim()||!isFinite(Number(b.maxScore))||Number(b.maxScore)<=0)return fail('BAD_REQUEST');
   const type=String(b.type||'submission');if(['submission','worksheet','text','link','file','image','pdf','exam'].indexOf(type)<0)return fail('INVALID_TYPE');
   if(type==='exam'&&!findExam(b.examId))return fail('INVALID_EXAM');
   let due=String(b.dueAt||'');if(due&&!/(Z|[+-]\d\d:\d\d)$/.test(due))due+='+07:00';if(due&&!isFinite(Date.parse(due)))return fail('INVALID_DUE');
   const category=validCategory(b.category|| (type==='exam'?'quiz':'worksheet')),reference=safeUrl(b.referenceUrl);
-  const id=newId('WK');worksSheet().appendRow([id,b.classId,textCell(b.title),type,Number(b.maxScore),due,String(b.examId||''),true,new Date().toISOString(),textCell(b.description),textCell(b.worksheetName),category,reference]);return {ok:true,workId:id};
+  const id=newId('WK');worksSheet().appendRow([id,b.classId,textCell(b.title),type,Number(b.maxScore),due,String(b.examId||''),true,new Date().toISOString(),textCell(b.description),textCell(b.worksheetName),category,reference,true]);return {ok:true,workId:id};
 }
-function publicWork(w){return {workId:w.workId,classId:w.classId,title:w.title,type:w.type,maxScore:Number(w.maxScore),dueAt:w.dueAt,examId:w.examId,active:bool(w.active,true),description:w.description||'',worksheetName:w.worksheetName||'',category:workCategory(w),referenceUrl:w.referenceUrl||''};}
+function publicWork(w){return {workId:w.workId,classId:w.classId,title:w.title,type:w.type,maxScore:Number(w.maxScore),dueAt:w.dueAt,examId:w.examId,active:bool(w.active,true),accepting:bool(w.accepting,true),createdAt:w.createdAt||'',description:w.description||'',worksheetName:w.worksheetName||'',category:workCategory(w),referenceUrl:w.referenceUrl||''};}
 function listWorks(p){requireTeacher(p);return {ok:true,works:_rows(worksSheet()).filter(w=>!p.classId||String(w.classId)===String(p.classId)).map(publicWork)};}
 function studentAuth(p,c){
   const s=parseJson(c.studentsJson,[]).find(s=>String(s.studentId)===String(p.studentId));
@@ -408,7 +408,7 @@ function studentAuth(p,c){
   if(String(c.entryMode||'simple')!=='simple'&&(!s.accessCode||String(p.accessCode||'').toUpperCase()!==String(s.accessCode).toUpperCase()))throw Error('PERSONAL_LINK_REQUIRED');
   return s;
 }
-function getWorkEntry(p){const c=classById(p.classId);if(!c)return fail('CLASS_NOT_FOUND');return {ok:true,apiVersion:'V58',className:c.className,subject:c.subject,entryMode:c.entryMode||'simple'};}
+function getWorkEntry(p){const c=classById(p.classId);if(!c)return fail('CLASS_NOT_FOUND');return {ok:true,apiVersion:'V62',className:c.className,subject:c.subject,entryMode:c.entryMode||'simple'};}
 function defaultGradeScale(){return [{min:80,grade:'4'},{min:75,grade:'3.5'},{min:70,grade:'3'},{min:65,grade:'2.5'},{min:60,grade:'2'},{min:55,grade:'1.5'},{min:50,grade:'1'},{min:0,grade:'0'}];}
 function gradeScale(c){return parseJson(c.gradeScaleJson,null)||defaultGradeScale();}
 function calcGrade(percent,scale){const band=scale.find(x=>percent>=x.min);return band?String(band.grade):'\u2014';}
@@ -465,6 +465,7 @@ function saveAttachments(input,old,keep){
 function submitWork(b){
   const cls=classById(b.classId);if(!cls)return fail('CLASS_NOT_FOUND');const student=studentAuth(b,cls);
   const w=_rows(worksSheet()).find(w=>String(w.workId)===String(b.workId)&&String(w.classId)===String(b.classId));if(!w||!bool(w.active,true)||w.type==='exam')return fail('INVALID_WORK');
+  if(!bool(w.accepting,true))return fail('WORK_CLOSED');
   const sh=submissionsSheet(),old=_rows(sh).find(s=>String(s.workId)===String(b.workId)&&String(s.studentId)===String(b.studentId));
   if(old&&Number(b.revision||0)!==Number(old.revision||0))return fail('REVISION_CONFLICT');
   const text=String(b.answerText||'').trim(),url=safeUrl(b.answerUrl);if(text.length>20000)return fail('TEXT_TOO_LONG');
@@ -513,7 +514,7 @@ function dashboardData(p,cls,onlyStudent){
  const categories=categoryScores(items,cls),weighted=scoringMode(cls)==='weighted',exact=weighted?categories.reduce((n,c)=>n+c.points,0):max?total/max*100:0;
  const incomplete=weighted&&categories.some(c=>c.weight>0&&!c.max);
  return {studentId:String(s.studentId),studentName:s.studentName,total:total,max:max,percent:Math.round(exact*100)/100,grade:max?calcGrade(exact,gradeScale(cls)):'\u2014',gradeProvisional:pending>0||missing.length>0||incomplete,categories:categories,missing:missing,pending:pending,items:items};});
-  return {ok:true,apiVersion:'V58',classInfo:{classId:cls.classId,className:cls.className,subject:cls.subject,code:cls.code,entryMode:cls.entryMode||'simple',gradeScale:gradeScale(cls),resultVisibility:resultVisibility(cls),scoringMode:scoringMode(cls),categoryWeights:categoryWeights(cls)},works:works.map(publicWork),students:students,submissions:subs.map(s=>Object.assign({},s,{attachments:parseJson(s.attachmentsJson,[])})),roster:onlyStudent?undefined:roster};
+  return {ok:true,apiVersion:'V62',classInfo:{classId:cls.classId,className:cls.className,subject:cls.subject,code:cls.code,entryMode:cls.entryMode||'simple',gradeScale:gradeScale(cls),resultVisibility:resultVisibility(cls),scoringMode:scoringMode(cls),categoryWeights:categoryWeights(cls)},works:works.map(publicWork),students:students,submissions:subs.map(s=>Object.assign({},s,{attachments:parseJson(s.attachmentsJson,[])})),roster:onlyStudent?undefined:roster};
 }
 function getClassDashboard(p){requireTeacher(p);const c=classById(p.classId);return c?dashboardData(p,c):fail('CLASS_NOT_FOUND');}
 function getStudentWork(p){
@@ -525,8 +526,20 @@ function getStudentWork(p){
    student.items.forEach(i=>{delete i.score;});
    d.submissions.forEach(s=>{delete s.score;delete s.feedback;});
  }
- return {ok:true,apiVersion:'V58',classInfo:d.classInfo,student:student,works:d.works,submissions:d.submissions};
+ return {ok:true,apiVersion:'V62',classInfo:d.classInfo,student:student,works:d.works,submissions:d.submissions};
 }
 function setupV57(){setupV55();}
+
+function setupV62(){setupV55();}
+
+function setWorkReceiving(b){
+ requireTeacher(b);
+ const sh=worksSheet(),w=_rows(sh).find(w=>String(w.workId)===String(b.workId)&&String(w.classId)===String(b.classId));
+ if(!w)return fail('INVALID_WORK');
+ if(w.type==='exam')return fail('EXAM_MANAGED_SEPARATELY');
+ if(typeof b.accepting!=='boolean')return fail('INVALID_RECEIVING');
+ sh.getRange(w._row,14).setValue(b.accepting);
+ return {ok:true,workId:w.workId,accepting:b.accepting};
+}
 
 function setupV58(){setupV55();}
