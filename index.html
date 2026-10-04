@@ -9,7 +9,7 @@
   <title>ระบบงานครูอาชีวศึกษา</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <style>
     :root{--ink:#16324f;--muted:#64748b;--blue:#0f6097;--sky:#dff3ff;--line:#dbe4ec;--paper:#fff;--bg:#eef4f8;--orange:#f59e0b;--shadow:0 18px 50px rgba(25,55,80,.12)}
     *{box-sizing:border-box} body{margin:0;font-family:"TH Sarabun New","Sarabun",sans-serif;color:var(--ink);background:var(--bg);font-size:16px}
@@ -23,7 +23,7 @@
     @media print{body{background:#fff}.appbar,.form-panel,.preview-head{display:none!important}.workspace{display:block;padding:0;margin:0;max-width:none}.paper-stage{padding:0;overflow:visible}.paper{box-shadow:none;width:210mm;min-height:297mm;margin:0;padding:14mm 15mm}.preview-wrap{overflow:visible}.foot{position:relative}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
   </style>
   <link rel="stylesheet" href="./teacher-dashboard.css?v=20260914v45">
-  <link rel="stylesheet" href="./assignments.css?v=62">
+  <link rel="stylesheet" href="./assignments.css?v=63">
 </head>
 <body>
   <header class="appbar"><div class="brand"><div class="brandmark"></div><span>ระบบงานครูอาชีวศึกษา</span></div><div class="actions"><button class="btn btn-light" id="resetBtn">↻ <span class="label">ล้างข้อมูล</span></button><button class="btn btn-light" id="printBtn">⌁ <span class="label">พิมพ์</span></button><button class="btn btn-light" id="openPdfBtn">▣ <span class="label">เปิด PDF</span></button><button class="btn btn-primary" id="downloadPdfBtn">↓ <span class="label">บันทึก PDF</span></button></div></header>
@@ -110,11 +110,11 @@
   <script src="./pdf-fix.js?v=20260911v28"></script>
   <script src="./exam-publish.js?v=20261004v57-fix1"></script>
   <link rel="stylesheet" href="./slide-builder.css?v=20260914v42">
-  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
-  <script src="./slide-builder.js?v=20260914v42"></script>
-  <script src="./teacher-dashboard.js?v=20261004v62"></script>
-  <script src="./work-api.js?v=62"></script>
+  <!-- PowerPoint library loads locally only when exporting. -->
+  <script src="./slide-builder.js?v=63"></script>
+  <script src="./teacher-dashboard.js?v=20261005v63"></script>
+  <script src="./work-api.js?v=63"></script>
   <script src="./qrcode.min.js?v=58"></script>
-  <script src="./work-status.js?v=62"></script><script src="./assignments.js?v=62"></script>
+  <script src="./work-status.js?v=63"></script><script src="./assignments.js?v=63"></script>
 </body>
 </html>

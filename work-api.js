@@ -7,7 +7,7 @@ function get(action,params={},timeout=15000){return new Promise((resolve,reject)
  const cb='work_'+crypto.getRandomValues(new Uint32Array(3)).join('_'),script=document.createElement('script');let settled=false;
  const done=(error,value)=>{if(settled)return;settled=true;clearTimeout(timer);script.remove();window[cb]=()=>{};setTimeout(()=>delete window[cb],60000);error?reject(error):resolve(value)};
  const timer=setTimeout(()=>done(Error('เชื่อมต่อช้า กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง')),timeout);
- window[cb]=r=>{if(r&&r.ok)return done(null,r);const e=Error(errors[r?.errorCode]||r?.errorCode||'โหลดข้อมูลไม่สำเร็จ');e.server=true;done(e)};
+ window[cb]=r=>{if(r&&r.ok){if(r.apiVersion==='V62')healthyAt=Date.now();return done(null,r);}const e=Error(errors[r?.errorCode]||r?.errorCode||'โหลดข้อมูลไม่สำเร็จ');e.server=true;done(e)};
  script.onerror=()=>done(Error('ติดต่อระบบออนไลน์ไม่ได้ ตรวจอินเทอร์เน็ตหรือลิงก์ Apps Script'));script.src=API+'?'+new URLSearchParams({action,...params,callback:cb});document.head.appendChild(script);
 });}
 function id(){return Array.from(crypto.getRandomValues(new Uint8Array(16)),x=>x.toString(16).padStart(2,'0')).join('')}
