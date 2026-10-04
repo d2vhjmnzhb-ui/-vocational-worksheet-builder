@@ -151,7 +151,7 @@ function setMode(mode){
  document.body.dataset.proMode=mode;localStorage.setItem('teacherMode',mode);
  document.querySelectorAll('#proTeacherNav button').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
  if(!['worksheet','exam','slides','results','work'].includes(mode))mode='worksheet';
- const map={work:['งานและคะแนน','ส่งงาน ตรวจงาน และสมุดคะแนน • V57'],worksheet:['สร้างใบงาน','นำเข้าโจทย์จาก AI เพิ่มโจทย์เอง และจัดเอกสาร A4'],exam:['ข้อสอบออนไลน์','สร้างคลังข้อสอบแยกจากใบงาน ตรวจหน้าจอนักเรียน แล้วจึงเผยแพร่'],slides:['สร้างสไลด์','ค้นเนื้อหา วางจาก AI แก้ข้อความและรูป แล้วส่งออก PDF หรือ PowerPoint'],results:['ผลการสอบ','ตรวจคะแนน คำตอบข้อเขียน และผลการเข้าสอบจาก Google Sheet']};
+ const map={work:['งานและคะแนน','ส่งงาน ตรวจงาน และสมุดคะแนน • V58'],worksheet:['สร้างใบงาน','นำเข้าโจทย์จาก AI เพิ่มโจทย์เอง และจัดเอกสาร A4'],exam:['ข้อสอบออนไลน์','สร้างคลังข้อสอบแยกจากใบงาน ตรวจหน้าจอนักเรียน แล้วจึงเผยแพร่'],slides:['สร้างสไลด์','ค้นเนื้อหา วางจาก AI แก้ข้อความและรูป แล้วส่งออก PDF หรือ PowerPoint'],results:['ผลการสอบ','ตรวจคะแนน คำตอบข้อเขียน และผลการเข้าสอบจาก Google Sheet']};
  if($('proTitle'))$('proTitle').textContent=map[mode][0];if($('proSubtitle'))$('proSubtitle').textContent=map[mode][1];
  if(mode==='exam')setTimeout(updatePreview,100);
  if(mode==='slides')setTimeout(()=>{if(typeof window.openSlideStudio==='function')window.openSlideStudio();},30);

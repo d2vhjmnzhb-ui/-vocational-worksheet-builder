@@ -1,0 +1,9 @@
+V58 validation 2026-10-04
+PASS 41 backend checks using actual Code.gs with simulated Spreadsheet/Drive/Apps Script services.
+Includes weighted scores 96/120 -> 24/30, combined category weights -> 80/100 grade4; empty weighted categories remain zero; invalid weights do not mutate settings; legacy classrooms keep total mode; new classrooms default weighted; category scores redacted for hidden student results; teacher task category/reference edits including linked exams.
+PASS Chromium131 browser flows with actual frontend and mocked Apps Script transport:
+create class/task; file-only submission; inline empty error; upload PDF; teacher grades and publishes; student gets grade; remembered sessions; 390/768/1024 viewport overflow checks; personal link; QR; navigation; all submission type controls; hide published grades again; weighted UI 8/10 ->24/100 with category breakdown; missing-task tile opens teacher instructions; no-missing empty state; image-only submission UI with separate teacher-provided reference; HARD SUBMIT GATE warn/dedup checks; no JS exceptions.
+PASS 18 JS syntax checks; inline HTML included. HTML parsing and local script/style references checked.
+Screenshots inspected with Thai font on test host: teacher mobile cards, student scores, student image-only missing task.
+student-exam.html byte-identical to V57-FIX1; new-account endpoint retained.
+Limitations: no live deployment or writes to user's Sheet/Drive; no physical iPad/Android test; legacy slide/PDF/PPTX exports not comprehensively rerun. Example worksheet link opening permissions depend on teacher sharing. Weight groups are fixed four with editable weights; no daily behavior ledger. Reference is a URL, not a new teacher file-upload service. Empty categories weighted above zero make grades provisional. Existing published information cannot be erased from a student's prior copy.
