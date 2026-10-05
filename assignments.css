@@ -54,3 +54,7 @@ body[data-pro-mode="work"] .appbar{display:none!important}
 /* V63 fixed work headings, two lines; full title in work settings. */
 .v59-table th b,.v58-work-chip b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.4;max-height:2.8em;overflow-wrap:anywhere}
 .v59-table th b{width:112px;max-width:112px}
+
+/* V65 composing does not animate or trigger expensive offscreen layout. */
+#v56Grades{content-visibility:auto;contain-intrinsic-size:auto 800px}
+#v56NewWorkPanel{scroll-margin-top:16px}

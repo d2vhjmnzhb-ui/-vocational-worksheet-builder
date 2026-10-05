@@ -5,8 +5,8 @@ const state=i=>!i||i.status==='ขาด'?['ขาด','missing']:i.late?['ส�
 window.WorkStatus={open(dash){
  const d=document.getElementById('v55Dialog');
  // Snapshot only the fields permitted in the report. Never render the teacher DOM.
- const works=dash.works.map(w=>({id:w.workId,title:w.title}));
- const students=dash.students.map(s=>({name:s.studentName,id:s.studentId,states:works.map(w=>state(s.items.find(i=>i.workId===w.id)))}));
+ const works=dash.works.map(w=>({id:w.workId,title:w.title,type:w.type}));
+ const students=dash.students.map(s=>({name:s.studentName,id:s.studentId,states:works.map(w=>{const i=s.items.find(i=>i.workId===w.id);return w.type==='manual'?[i?.status==='ตรวจแล้ว'?'ประเมินแล้ว':'รอประเมิน',i?.status==='ตรวจแล้ว'?'done':'late']:state(i)})}));
  const heading=[dash.classInfo.className,dash.classInfo.subject].filter(Boolean).join(' • '),stamp=new Date().toLocaleString('th-TH');
  d.innerHTML=`<h2>ตารางการส่งงาน</h2><p>ข้อมูล ณ ${esc(stamp)} • ภาพแสดงเฉพาะสถานะส่งงาน</p><label>รายชื่อที่ต้องการแสดง<select id="v61Person"><option value="">ทั้งห้อง</option>${students.map((s,n)=>`<option value="${n}">${esc(s.name)}</option>`).join('')}</select></label><div class="v55-actions"><button id="v61Save" class="pro-btn primary">บันทึกภาพส่งผู้ปกครอง</button><button id="v61Close" class="pro-btn secondary">ปิด</button></div><p id="v61Message" role="status"></p><div id="v61Report"></div><div id="v61Images"></div>`;
  const select=d.querySelector('#v61Person'),box=d.querySelector('#v61Report'),images=d.querySelector('#v61Images');let urls=[];
